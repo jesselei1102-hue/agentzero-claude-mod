@@ -1,11 +1,14 @@
 {
   "name": "agentzero",
-  "owner": { "name": "AgentZero" },
+  "owner": {
+    "name": "AgentZero"
+  },
   "plugins": [
     {
       "name": "agentzero",
       "source": "./plugins/agentzero",
       "description": "AgentZero for Claude Code: the full framework, plus engine-enforced hot set loading and a check of the operator's words."
     }
-  ]
+  ],
+  "description": "AgentZero for Claude Code, from a plugin marketplace."
 }
