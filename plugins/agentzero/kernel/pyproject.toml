@@ -1,0 +1,70 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agentzero"
+version = "0.4.5"
+description = "Agent Learning Convention Layer — System prompt and file organization conventions for self-learning agents"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "AgentZero Contributors" }]
+keywords = ["agent", "llm", "mcp", "skill", "convention", "self-learning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "pyyaml>=6,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+    "pytest-cov>=5,<6",
+    "ruff>=0.5,<1",
+    "mypy>=1.10,<2",
+    "types-pyyaml>=6,<7",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/score", "src/traces", "src/memory", "src/skills", "src/adapter"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src"]
+extend-exclude = [
+    # Frozen pre-convention engine; ADR 0001 retired it and it must not be extended.
+    "legacy",
+    # Generated copy of src/, kept byte-identical by test_template_src_matches_framework_src.
+    # Linting it would report every finding twice.
+    "template/src",
+    # The archive's own record: literal strings that must match source text exactly
+    # (including typographic dashes). Never exported, never imported.
+    "private",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# The command packages check for PyYAML before importing anything that needs it.
+"src/memory/__init__.py" = ["E402"]
+"src/knowledge/__init__.py" = ["E402"]
+"src/skills/__init__.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+exclude = ["^legacy/", "^template/src/"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "--cov=score --cov=traces --cov=memory --cov=skills --cov=adapter --cov-report=term-missing"

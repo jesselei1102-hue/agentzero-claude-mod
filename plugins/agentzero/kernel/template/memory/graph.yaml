@@ -1,0 +1,7 @@
+# Memory graph (operator-auditable index)
+# Truth file for Entities + Edges. Links to Fact ids under memory/*.yaml.
+# Optional: regenerate memory/graph.md (Mermaid) for a glanceable map — do not hand-edit that file as truth.
+# See Grill me/adr/0006-memory-graph-index.md
+
+entities: []
+edges: []

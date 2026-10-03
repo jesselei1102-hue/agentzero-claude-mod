@@ -1,0 +1,3 @@
+memory/traces/*
+!memory/traces/.gitkeep
+__pycache__/
