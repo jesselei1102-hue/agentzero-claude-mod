@@ -1,0 +1,15 @@
+# Verify-first answers (spec "Verify first")
+
+| # | Question | Answer | Evidence |
+|---|---|---|---|
+| 1 | Do hooks run from a marketplace install; any consent? | Yes, hooks run (headless run in the Lab); no consent seen in that run. Desktop app: plugin loaded in a new session (toast shown); the status line did not show there. | `claude -p` in the Lab with `--debug-file`: `hooks module agentzero@agentzero loaded (worker ...); events: session.start,prompt.submit`; `session.start settled in 9.8ms` |
+| 2 | Does a GitHub marketplace install bring `kernel/`? | pending (Task 10) | |
+| 3 | `$.plugin.root` is the installed folder? | For a local-directory marketplace it is the source folder itself (`.../agentzero-claude-mod/plugins/agentzero`), not the cache copy. kernel/ check pending (Task 2). | debug log: `$.ui.status (agentzero): AgentZero plugin loaded: /Users/.../agentzero-claude-mod/plugins/agentzero` |
+| 4 | Order: #89 reminder vs plugin `prompt.submit` | pending (Task 5) | |
+| 5 | `./a0 memory hot-set` timing inside hook limits | pending (Task 5) | |
+| 6 | `origin.kind` in desktop, terminal, VS Code | Desktop app: `composer` (operator saw the toast `agentzero: origin: composer`). Headless/SDK run: `sdk`. Terminal and VS Code not checked (operator uses the desktop app only); all three kinds are in the accepted set. | debug log: `$.ui.toast (agentzero): origin: sdk` |
+| 7 | Install for one project only? | Yes: scope `local` exists, bound to a project path. Enabled in the Lab, shown disabled from `$HOME`. | `claude plugin list` from `~`: `Scope: local, Status: disabled`; from the Lab: `enabled`; installed_plugins.json `projectPath: .../AgentZero-Claude-Lab` |
+
+Task 1 Steps 2-5 evidence (2026-10-04): `claude plugin validate plugins/agentzero` passes (one warning: no author). `claude plugin test plugins/agentzero` → 3 pass, 0 fail.
+
+**Finding (2026-10-04):** a headless/SDK session (which the desktop app uses) has no status row: the debug log says `no status row in a headless session; kept here: ...`. So `$.ui.status` is invisible there, and Task 5/6's status messages would not be seen in the desktop app. Needs a ruling before Task 5 (see ledger).

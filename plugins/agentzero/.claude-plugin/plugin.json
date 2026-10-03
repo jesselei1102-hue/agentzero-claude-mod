@@ -1,0 +1,5 @@
+{
+  "name": "agentzero",
+  "version": "0.0.1",
+  "description": "AgentZero for Claude Code: all of AgentZero, plus hot set loading and a check of the operator's words."
+}
