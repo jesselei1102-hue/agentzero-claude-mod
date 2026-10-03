@@ -1,4 +1,4 @@
-import type { On } from 'claude-code'
+import type { On, SessionMessage } from 'claude-code'
 import { mock } from 'claude-code/testing'
 
 // The engine stands beneath the plugin in a test: this answers every call the hot-set
@@ -11,6 +11,8 @@ export type World = {
   clock: ReturnType<typeof mock.clock>
   setRun: (answer: { exitCode: number; stdout: string } | Error) => void
   existing: Set<string>
+  messages: SessionMessage[]
+  commands: string[]
 }
 
 export function world(on: On, opts: { root?: string; existing?: string[] } = {}): World {
@@ -24,6 +26,8 @@ export function world(on: On, opts: { root?: string; existing?: string[] } = {})
     setRun: answer => {
       next = answer
     },
+    messages: [],
+    commands: [],
     existing: new Set(opts.existing ?? [`${root}/System.md`, `${root}/memory`, `${root}/a0`]),
   }
   let next: { exitCode: number; stdout: string } | Error = { exitCode: 0, stdout: '## Facts (1)\n' }
@@ -54,6 +58,11 @@ export function world(on: On, opts: { root?: string; existing?: string[] } = {})
         isStderrTruncated: false,
       },
     }
+  })
+  on('session.messages', async () => ({ value: w.messages }))
+  on('tool.call', { tool: 'Bash' }, async (_$, e) => {
+    w.commands.push(e.command)
+    return { result: { stdout: 'ok', stderr: '' } }
   })
   on('ui.status', async (_$, e) => {
     w.statuses.push(e.text)
