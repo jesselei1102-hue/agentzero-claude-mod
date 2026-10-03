@@ -13,3 +13,5 @@
 Task 1 Steps 2-5 evidence (2026-10-04): `claude plugin validate plugins/agentzero` passes (one warning: no author). `claude plugin test plugins/agentzero` → 3 pass, 0 fail.
 
 **Finding (2026-10-04):** a headless/SDK session (which the desktop app uses) has no status row: the debug log says `no status row in a headless session; kept here: ...`. So `$.ui.status` is invisible there, and Task 5/6's status messages would not be seen in the desktop app. Needs a ruling before Task 5 (see ledger).
+
+**Task 7 Step 5 (2026-10-04):** `/agentzero init` run for real in `~/Documents/AgentZero-Claude-Lab` (`claude -p "/agentzero init"`, plugin enabled there): reply "AgentZero is set up in …. Start a new session here…". A reference workspace made with `PYTHONPATH=<plugin>/kernel/src python3 -m adapter init <scratch>/ref --harness claude` has the same file list; contents equal except `src/VERSION.yaml` `vendored_at` (timestamp), and `.claude/settings.json`, which is equal as JSON and differs only in key order. Only the Lab's own `.claude/settings.local.json` (the plugin's enablement) is extra.
