@@ -12,13 +12,6 @@ function localTime(ms: number): string {
 }
 
 export function registerHotSet(on: On): void {
-  on('session.start', async ($, e, next) => {
-    const data = sessionData(await $.session.id())
-    const exists = (p: string) => $.fs.stat(p).then(() => true, () => false)
-    await locateWorkspace(data, () => $.session.root(), exists)
-    return next(e)
-  })
-
   on('session.compact', async ($, e, next) => {
     const result = await next(e)
     if (e.agentId === undefined && e.trigger !== 'precompute' && result.skip === undefined) {
