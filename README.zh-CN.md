@@ -53,7 +53,7 @@ MIT · 一个 Claude Code 插件
 
 ## 环境要求
 
-- 支持 function hooks 的 Claude Code（在 2.1.280 和 2.1.286 上试过）。
+- 支持 function hooks 的 Claude Code（在终端的 2.1.280 和桌面 app 的 2.1.286 上试过）。
 - Python 3.11 或更高，并装有 PyYAML：`python3 -m pip install pyyaml`。插件会找 `python3`、`python` 和常见的安装目录。工作区里的 `./a0` 会自己找 Python。
 - macOS 或 Linux。**Windows 还没有验证。**
 

@@ -111,3 +111,33 @@ test('words copied with other whitespace still match', async ($, on) => {
   await $.tool.call({ tool: 'Bash', command: REMEMBER })
   expect(w.commands).toEqual([REMEMBER])
 })
+
+const SUMMARY =
+  'This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.\n\nSummary: the operator said everything is all in mm'
+
+test("a compaction summary row is not the operator's words", async ($, on) => {
+  const w = world(on)
+  w.messages = [{ role: 'user', text: SUMMARY, toolUses: [] }]
+  await $.session.start(START)
+  await $.tool.call({ tool: 'Bash', command: REMEMBER })
+  expect(w.commands).toEqual([PROPOSE])
+})
+
+test('a summary written after the first prompt is not counted either', async ($, on) => {
+  const w = world(on)
+  await $.session.start(START)
+  await $.prompt.submit(PROMPT('hello'))
+  w.messages = [{ role: 'user', text: SUMMARY, toolUses: [] }]
+  await $.tool.call({ tool: 'Bash', command: REMEMBER })
+  expect(w.commands).toEqual([PROPOSE])
+})
+
+test('the rows before the first prompt of this process count (a resume)', async ($, on) => {
+  const w = world(on)
+  w.messages = [{ role: 'user', text: 'we work all in mm here', toolUses: [] }]
+  await $.session.start(START)
+  await $.prompt.submit(PROMPT('continue'))
+  w.messages = []
+  await $.tool.call({ tool: 'Bash', command: REMEMBER })
+  expect(w.commands).toEqual([REMEMBER])
+})

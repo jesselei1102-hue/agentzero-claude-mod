@@ -14,6 +14,23 @@ export function recordOperatorPrompt(data: SessionData, e: { text: string; origi
   if (e.origin !== undefined && OPERATOR_ORIGINS.includes(e.origin.kind)) data.prompts.push(e.text)
 }
 
+type Row = { role: string; text: string; toolResults?: readonly unknown[] }
+
+// Rows the engine writes as `user` that are not words the operator typed: the summary a
+// compaction leaves behind (it can hold the agent's own paraphrase) and the records of
+// slash commands.
+const NOT_TYPED = /^(This session is being continued from a previous conversation|<local-command-|<command-name>)/
+
+// After a resume the operator's earlier prompts are in the transcript, not in this
+// process. Called with the main conversation's rows at the first prompt of the process.
+export function seedFromRows(data: SessionData, rows: readonly Row[]): void {
+  for (const row of rows) {
+    const typed = row.role === 'user' && (row.toolResults === undefined || row.toolResults.length === 0)
+    if (typed && !NOT_TYPED.test(row.text.trimStart())) data.prompts.push(row.text)
+  }
+  data.seeded = true
+}
+
 export function registerSaidCheck(on: On): void {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const data = sessionData(await $.session.id())
@@ -29,17 +46,12 @@ export function registerSaidCheck(on: On): void {
       return next(e)
     }
 
-    // After a resume the operator's earlier prompts are in the transcript, not in this
-    // process. Always the main conversation: a subagent's remember is the main
-    // operator's words too.
+    // Normally seeded at the first prompt (feature-hotset.ts); this covers a module
+    // reloaded mid-session. Always the main conversation: a subagent's remember is the
+    // main operator's words too.
     if (!data.seeded) {
       try {
-        for (const row of await $.session.messages({})) {
-          if (row.role === 'user' && (row.toolResults === undefined || row.toolResults.length === 0)) {
-            data.prompts.push(row.text)
-          }
-        }
-        data.seeded = true
+        seedFromRows(data, await $.session.messages({}))
       } catch {
         // checked against what this process saw; tried again at the next remember
       }

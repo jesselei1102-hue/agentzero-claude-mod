@@ -1,6 +1,6 @@
 import type { On } from 'claude-code'
 import { hintsFrom, hotSetContext, needsHotSet } from './hotset'
-import { recordOperatorPrompt } from './feature-said'
+import { recordOperatorPrompt, seedFromRows } from './feature-said'
 import { locateWorkspace, sessionData } from './session'
 
 const A0_TIMEOUT_MS = 10_000
@@ -27,6 +27,14 @@ export function registerHotSet(on: On): void {
 
   on('prompt.submit', async ($, e, next) => {
     const data = sessionData(await $.session.id())
+    if (!data.seeded) {
+      // the transcript's earlier user rows, read before this prompt joins the list
+      try {
+        seedFromRows(data, await $.session.messages({}))
+      } catch {
+        // the first remember tries again
+      }
+    }
     recordOperatorPrompt(data, e)
     const exists = (p: string) => $.fs.stat(p).then(() => true, () => false)
     const workspace = await locateWorkspace(data, () => $.session.root(), exists)

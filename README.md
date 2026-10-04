@@ -51,7 +51,7 @@ Other commands:
 
 ## Requirements
 
-- Claude Code with function hooks (tested on 2.1.280 and 2.1.286).
+- Claude Code with function hooks (tested on 2.1.280 in the terminal and 2.1.286 in the desktop app).
 - Python 3.11 or newer with PyYAML: `python3 -m pip install pyyaml`. The plugin looks for `python3`, `python`, and the usual install folders. Inside a workspace, `./a0` finds Python itself.
 - macOS or Linux. **Windows is not verified.**
 
