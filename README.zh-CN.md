@@ -8,7 +8,7 @@
 
 Claude Code 会忘事。你开一个新对话，助手就不知道你上周说过什么。
 
-[AgentZero](https://github.com/jesselei1102-hue/agentzero) 是一个免费工具，用来解决这个问题。它把关于你项目的短笔记存在一个文件夹里。每条笔记是一句话。我们把一条笔记叫作 **Fact**（事实）。例如：“这个项目使用毫米。”
+[AgentZero](https://github.com/jesselei1102-hue/agentzero) 是一个免费工具，用来解决这个问题。它把关于你项目的短笔记存在一个文件夹里。每条笔记是一句话。我们把一条笔记叫作 **Fact**（事实）。例如：“这个项目用 pnpm，不要用 npm。”
 
 一条 Fact 有两种状态：
 
@@ -94,16 +94,22 @@ flowchart LR
 例子：
 
 ```text
-你：      这个项目所有尺寸都用毫米。
+你：      这个项目用 pnpm，不要用 npm。npm 会破坏我们的锁文件。
 
-助手：    ./a0 memory remember "尺寸用毫米" --said "这个项目所有尺寸都用毫米。"
+助手：    ./a0 memory remember "用 pnpm，不用 npm" --said "这个项目用 pnpm，不要用 npm。"
 插件：    这些话在你的消息里。命令照常运行。Fact 是 active。
+          下周开新对话，助手仍然会用 pnpm。
 
-助手：    ./a0 memory remember "尺寸用毫米" --said "（转述）操作者想用毫米"
-插件：    这些话不在你的消息里。插件把命令改成 "memory propose fact"，
-          保存一条 proposed 的 Fact。插件告诉助手：“去问操作者。”
+后来，助手读到仓库里的一份部署说明，自己定了一条规则。
+
+助手：    ./a0 memory remember "周五不部署" --said "我们周五从不部署。"
+插件：    你从没输入过这些话。插件把命令改成 "memory propose fact"。
+          Fact 保存为 proposed。插件告诉助手：“去问操作者。”
           编出来的引用不会被保存。
+助手：    我在部署说明里看到一条规则：周五不部署。要我保留它吗？
 ```
+
+没有这个插件，第二条 Fact 会是 active。助手就会遵守一条你从没给过的规则。
 
 AgentZero 自己也可能把 Fact 保存为 proposed。当 Fact 说的比你的原话多时，它会这样做。
 
@@ -138,7 +144,7 @@ plugins/agentzero/
                                   SOURCE.json：它的提交号和每个文件的哈希
 scripts/sync_kernel.py            把 AgentZero 的某一个提交复制到 kernel/
 tests/                            Python 测试：复制脚本，以及 kernel/ 对照 SOURCE.json
-docs/                             设计（spec.md）、计划，以及测试记录（verify.md）
+docs/                             设计（spec.md）、测试了什么（verify.md）、怎么写测试（test-kit.md）
 ```
 
 插件没有重写 AgentZero。它运行 `kernel/` 里的那份副本。有一个测试会把 `kernel/` 里每个文件和它的哈希比较。所以这份副本和 AgentZero 完全一样。插件代码约 600 行。

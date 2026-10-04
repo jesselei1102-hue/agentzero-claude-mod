@@ -8,7 +8,7 @@ A plugin for Claude Code. It gives the AI assistant a memory for your project. I
 
 Claude Code forgets. When you start a new conversation, the assistant does not know what you said last week.
 
-[AgentZero](https://github.com/jesselei1102-hue/agentzero) is a free tool that solves this. It keeps short notes about your project in a folder. Each note is one sentence. We call a note a **Fact**. Example: "This project uses millimetres."
+[AgentZero](https://github.com/jesselei1102-hue/agentzero) is a free tool that solves this. It keeps short notes about your project in a folder. Each note is one sentence. We call a note a **Fact**. Example: "Use pnpm in this project, never npm."
 
 A Fact is in one of two states:
 
@@ -94,16 +94,22 @@ flowchart LR
 Example:
 
 ```text
-You:        All sizes in this project are in millimetres.
+You:        Use pnpm in this project, never npm. npm breaks our lockfile.
 
-Assistant:  ./a0 memory remember "Sizes are in mm" --said "All sizes in this project are in millimetres."
+Assistant:  ./a0 memory remember "Use pnpm, never npm" --said "Use pnpm in this project, never npm."
 Plugin:     The words are in your message. The command runs. The Fact is active.
+            Next week, in a new conversation, the assistant still uses pnpm.
 
-Assistant:  ./a0 memory remember "Sizes are in mm" --said "(paraphrase) the operator wants mm"
-Plugin:     The words are not in your messages. The plugin changes the command to
-            "memory propose fact", which saves a proposed Fact. The plugin tells the
+Later, the assistant reads a deploy note in the repository and decides on a rule.
+
+Assistant:  ./a0 memory remember "Never deploy on Fridays" --said "We never deploy on Fridays."
+Plugin:     You never typed those words. The plugin changes the command to
+            "memory propose fact". The Fact is saved as proposed. The plugin tells the
             assistant: "Ask the operator." The invented quote is not saved.
+Assistant:  I found a rule in the deploy note: never deploy on Fridays. Do you want me to keep it?
 ```
+
+Without the plugin, the second Fact would be active. The assistant would then follow a rule that you never gave.
 
 AgentZero itself can also save a Fact as proposed. It does this when the Fact says more than your words say.
 
@@ -138,7 +144,7 @@ plugins/agentzero/
                                   SOURCE.json: its commit and the hash of each file
 scripts/sync_kernel.py            copies one AgentZero commit into kernel/
 tests/                            Python tests: the copy script, and kernel/ against SOURCE.json
-docs/                             the design (spec.md), the plan, and the test records (verify.md)
+docs/                             the design (spec.md), what was tested (verify.md), and how to write tests (test-kit.md)
 ```
 
 The plugin does not rewrite AgentZero. It runs the copy in `kernel/`. A test compares each file in `kernel/` with its hash. So the copy is exactly AgentZero. The plugin code is about 600 lines.

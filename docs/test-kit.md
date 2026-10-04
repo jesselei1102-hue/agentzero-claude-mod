@@ -19,7 +19,7 @@ test('name', async ($, on) => { ... })
 - Tests have no fs, network or process of their own: everything outside is a mocked `on` hook.
 - `$.plugin.root` in a test is the plugin's folder.
 
-Working examples: `plugins/agentzero/hooks/feature-hotset.test.ts` with its stand-in engine `plugins/agentzero/hooks/test-world.ts` (session id/root, fs.stat, process.run, ui.status/toast, mocked clock). Task 1's smoke test also showed a `tool.call` for `Bash`:
+Working examples: `plugins/agentzero/hooks/feature-hotset.test.ts` with its stand-in engine `plugins/agentzero/hooks/test-world.ts` (session id/root, fs.stat, process.run, ui.status/toast, mocked clock). An early smoke test also showed a `tool.call` for `Bash`:
 
 ```ts
 test('tool.call for Bash reaches the engine bottom unchanged', async ($, on) => {
@@ -31,7 +31,7 @@ test('tool.call for Bash reaches the engine bottom unchanged', async ($, on) => 
 })
 ```
 
-## Rules the validator and engine enforce (learned in Task 5)
+## Rules the validator and engine enforce
 
 - `$` is never passed across an import. A helper in another file cannot take `$`; pass closures made at the call site (`() => $.session.root()`) or keep the helper in the same file. `on` may be passed (`registerHotSet(on)`).
 - Bottom hooks answer a call on `$` with `{ value }` (e.g. `session.id`, `fs.stat`, `process.run`) or `{ deny: 'reason' }` (the plugin's `await` rejects with that message). An event hook (`session.compact`) answers its result type: `{ messages: [oneMessage] }` (empty is refused).
