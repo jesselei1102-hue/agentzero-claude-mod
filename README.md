@@ -1,60 +1,103 @@
-# AgentZero for Claude Code
+# agentzero-claude-mod
 
 **English** | [简体中文](./README.zh-CN.md)
 
-MIT · A Claude Code plugin
+[AgentZero](https://github.com/jesselei1102-hue/agentzero) as a Claude Code plugin. Install it from a marketplace and you have all of AgentZero, plus two things that only work from inside the engine:
 
-This plugin gives you all of [AgentZero](https://github.com/jesselei1102-hue/agentzero) in Claude Code, from a plugin marketplace. It carries a pinned copy of AgentZero and runs that same code. Nothing is rewritten, so nothing drifts.
+- it **loads the hot set for you**, so the agent doesn't have to remember to;
+- it **checks that a quote is yours** before a Fact is recorded as something you said.
 
-On top of that it adds two things only a plugin can do, because it runs inside the Claude Code engine:
-
-1. **It loads the hot set for you.** On your first prompt, after `/compact` or `/clear`, and after six hours, the plugin runs `./a0 memory hot-set` and hands the result to the model with your prompt. The agent no longer has to remember to do it.
-2. **It checks the words you are quoted on.** When the agent runs `memory remember --said "…"`, the plugin looks for those words in what you typed in this session. If they are there, the command runs as written. If they are not, the Fact is recorded as a **proposal** and the agent is told to ask you.
+The plugin carries a pinned, hash-checked copy of AgentZero and runs that same Python code. Nothing is rewritten, so nothing drifts. The plugin's own TypeScript is about 600 lines.
 
 ## Install
-
-In Claude Code:
 
 ```text
 /plugin marketplace add jesselei1102-hue/agentzero-claude-mod
 /plugin install agentzero@agentzero
 ```
 
-Choose the narrowest scope you are offered (project or local) so the plugin is on only where you want it.
-
-## Set up a project
-
-Open the folder you want to work in and run:
+Pick the narrowest scope offered (project or local), so it is on only where you want it. Then, in the project folder:
 
 ```text
 /agentzero init
 ```
 
-This makes the folder an AgentZero workspace for Claude Code: the same files, `CLAUDE.md`, Trace hooks and `./a0` launcher that AgentZero's own `adapter init --harness claude` makes. Then **start a new session** in that folder. `CLAUDE.md` and the hooks load when a session starts.
+Start a **new session** there. `CLAUDE.md` and the hooks load at session start. You now have the same workspace that AgentZero's own `adapter init --harness claude` makes.
 
-`init` refuses your home folder, the filesystem root, a folder that is already a workspace, and a folder inside one.
+Needs Python 3.11+ with PyYAML (`python3 -m pip install pyyaml`), on macOS or Linux.
 
-Other commands:
+## What it does
+
+### 1. The hot set arrives with your prompt
+
+AgentZero's Rule 3: load the hot set once per session, and again after compaction. Until now the agent had to run the command itself, and sometimes didn't (the 19-hour case, SETTLED #89 in AgentZero).
+
+The plugin runs `./a0 memory hot-set --hints "<your first 200 characters>"` and attaches the output to your prompt, as context the model reads and you don't see. It does this:
+
+- on your first prompt in a session,
+- on the first prompt after `/compact` or `/clear`,
+- on the first prompt after six hours.
+
+The attached text tells the agent not to run `hot-set` again. It takes about 100 ms. If `./a0` fails, takes over 10 s, or prints nothing, the plugin attaches nothing and says why: `AgentZero: hot set not loaded (exit 1)`.
+
+### 2. A quote has to be yours
+
+`memory remember --said "<words>"` records a Fact as something you said. The command can't see the conversation, so it can't tell your words from words the agent made up.
+
+The plugin can. When the agent runs `remember`, it looks for the `--said` text, whole, in what you typed this session (whitespace differences, including full-width and no-break spaces, are ignored).
+
+```text
+you:    我们这个项目所有尺寸都用毫米。
+agent:  ./a0 memory remember "…mm…" --said "我们这个项目所有尺寸都用毫米。"
+plugin: found → runs unchanged → remembered: …
+
+agent:  ./a0 memory remember "…mm…" --said "(paraphrase) operator confirmed mm"
+plugin: not found → runs `./a0 memory propose fact "…mm…"` instead, and tells the agent
+        "recorded as a proposal. Ask the operator."
+```
+
+A proposal waits for your yes (`./a0 memory review`). The words that didn't match are not stored.
+
+### 3. `/agentzero`
 
 | Command | Does |
 |---|---|
-| `/agentzero upgrade` | Brings the workspace to the plugin's AgentZero version. It never overwrites a framework file you edited; it shows what stopped it. |
-| `/agentzero status` | Shows whether the workspace can run, and the plugin and AgentZero versions. |
+| `init` | Makes this folder an AgentZero workspace for Claude Code. Refuses your home folder, `/`, an existing workspace, and anything inside one. |
+| `upgrade` | Brings the workspace to the plugin's AgentZero version. Never overwrites a framework file you edited; shows what stopped it. |
+| `status` | Whether the workspace can run, and the plugin and AgentZero versions. |
 
-## What the plugin adds, and its limits
+## Limits
 
-- **Claude Code only.** Codex and Cursor keep AgentZero's own rule and reminder; this plugin does not touch them.
-- **The word check proves the words are yours, not that they are all of them.** A quote cut short is still part of what you typed, so it passes.
-- **Some `remember` shapes are not checked.** The plugin reads one form: an optional `cd <dir> &&`, then `./a0 memory remember …` (or `python -m memory remember …`) with plain quoted values. A command built from variables, pipes, or `--workspace` runs unchanged, and you see "the operator's words in this remember were not checked".
-- **Messages appear in two places.** The desktop app draws no status line, so each plugin message also appears as a toast.
-- If the hot set cannot be loaded (`./a0` fails, takes over 10 seconds, or prints nothing), the plugin says why and adds nothing. AgentZero's own six-hour reminder is still there as a fallback.
+- **Claude Code only.** Codex and Cursor keep AgentZero's own rule and reminder.
+- **A cut quote passes.** The check proves the words are yours, not that they are all of them. A shortened quote is still a substring of what you typed.
+- **One `remember` shape is read:** an optional `cd <dir> &&`, then `./a0 memory remember …` (or `python -m memory remember …`), plain quoted values, flags `--said --fact-key --scope --tag --source-run`. Anything else (variables, pipes, `--workspace`) runs unchanged and you see `the operator's words in this remember were not checked`.
+- **The desktop app has no status line**, so every plugin message also appears as a toast.
+- **Not verified:** Windows; the terminal and VS Code origin kinds (the check accepts `composer`, `bridge` and `sdk`; the desktop app sends `composer`); a first install on a machine that never had AgentZero.
+- Written against Claude Code's function-hooks API, which is early access and moves between releases. Tested on 2.1.280 (terminal) and 2.1.286 (desktop app).
 
-## Requirements
+## How it's built
 
-- Claude Code with function hooks (tested on 2.1.280 in the terminal and 2.1.286 in the desktop app).
-- Python 3.11 or newer with PyYAML: `python3 -m pip install pyyaml`. The plugin looks for `python3`, `python`, and the usual install folders. Inside a workspace, `./a0` finds Python itself.
-- macOS or Linux. **Windows is not verified.**
+```text
+.claude-plugin/marketplace.json     one plugin
+plugins/agentzero/
+  hooks/                            the two features and /agentzero, with their tests
+  kernel/                           AgentZero, pinned; SOURCE.json holds its commit and file hashes
+scripts/sync_kernel.py              copies a commit of AgentZero into kernel/
+tests/                              pytest: the sync script, and kernel/ against its manifest
+docs/                               the spec, the plan, and what was verified (verify.md)
+```
 
-## Versions
+Run the tests:
 
-The plugin has its own version. `kernel/SOURCE.json` names the AgentZero commit, version and the SHA-256 of every file in the pinned copy; a test checks that copy against it. See [CHANGELOG.md](./CHANGELOG.md) and [DECISIONS.md](./DECISIONS.md).
+```bash
+claude plugin test plugins/agentzero      # the hooks
+python3 -m pytest                          # the sync script and the kernel manifest
+```
+
+To follow a new AgentZero release: `python3 scripts/sync_kernel.py <AgentZero checkout> --ref <tag> --denylist <file>`, then release a new plugin version.
+
+See [CHANGELOG.md](./CHANGELOG.md) and [DECISIONS.md](./DECISIONS.md).
+
+## License
+
+MIT. `kernel/LICENSE` is AgentZero's own.
