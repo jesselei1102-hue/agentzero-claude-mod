@@ -15,3 +15,15 @@ Task 1 Steps 2-5 evidence (2026-10-04): `claude plugin validate plugins/agentzer
 **Finding (2026-10-04):** a headless/SDK session (which the desktop app uses) has no status row: the debug log says `no status row in a headless session; kept here: ...`. So `$.ui.status` is invisible there, and Task 5/6's status messages would not be seen in the desktop app. Needs a ruling before Task 5 (see ledger).
 
 **Task 7 Step 5 (2026-10-04):** `/agentzero init` run for real in `~/Documents/AgentZero-Claude-Lab` (`claude -p "/agentzero init"`, plugin enabled there): reply "AgentZero is set up in …. Start a new session here…". A reference workspace made with `PYTHONPATH=<plugin>/kernel/src python3 -m adapter init <scratch>/ref --harness claude` has the same file list; contents equal except `src/VERSION.yaml` `vendored_at` (timestamp), and `.claude/settings.json`, which is equal as JSON and differs only in key order. Only the Lab's own `.claude/settings.local.json` (the plugin's enablement) is extra.
+
+## Task 9: acceptance in the Lab (2026-10-04, desktop app, read back from the session transcripts and `memory/`)
+
+| By-hand step | Done | Seen | Result |
+|---|---|---|---|
+| 1. `./a0 --which`, `memory review`, `knowledge list`, `skills list`, `memory lint` | agent (headless, in the Lab) | all exit 0 with the expected text | pass |
+| 2. Ask a question; the hot set is already in context and the agent does not run `hot-set` | operator, new session | First prompt carried a `hook_additional_context` starting `AgentZero hot set, loaded by the Claude Code plugin at 2026-10-04 10:46.` and the `Rule 3 …` line; the agent's only tool call was an `ls`/`cat` Bash, no `hot-set` run (0 Bash calls naming `hot-set`); `memory/traces/hot-set.last` was written by the plugin's run | pass |
+| 3. `/compact`, ask again: attached again | operator | After each `/compact` the next prompt carried a fresh header (10:47, 10:48) | pass |
+| 4a. Quote the operator exactly | operator | `./a0 memory remember … --said "我们这个项目所有尺寸都用毫米。"` ran unchanged → `remembered:`; fact `status: active`, `source_run: operator-stated`, `said:` kept | pass |
+| 4b. Paraphrase | operator | The agent's first try had no `--said` (kernel's own usage error, exit 2). Its second used a made-up `--said` → result `proposed: … waiting for the operator`; fact `status: proposed`, `source_run: agent-inferred`, no `said:` field; the model's context carried `AgentZero plugin: the --said words were not found in what the operator typed in this session, so this was recorded as a proposal. Ask the operator.`; `./a0 memory review` lists it as waiting | pass |
+
+Notes: after 4b the Lab holds one active and one proposed Fact with the same `fact_key` (`dimension-unit`); confirming the proposal would retire the active one. Left as is for the operator to confirm or reject. No failures, so no test was added in Step 2.
