@@ -4,13 +4,15 @@ import type { HudState } from '../types'
 import { EMPTY_HUD, refreshJob, type HudIo } from './snapshot'
 import { locateWorkspace, sessionData } from './session'
 import { PYTHON_PROBE, findPython } from './python'
+import { REVIEW_PANE, REVIEW_TITLE } from './pane'
 import { findWorkspace } from './workspace'
 
 const USAGE = [
-  'Usage: /agentzero <init|upgrade|status>',
+  'Usage: /agentzero <init|upgrade|status|review>',
   '  init     make this project folder an AgentZero workspace for Claude Code',
   '  upgrade  bring this workspace to the plugin\'s AgentZero version',
   '  status   show whether this workspace can run, and the plugin and kernel versions',
+  '  review   open the pane of what waits for your yes',
 ].join('\n')
 
 const NO_PYTHON = [
@@ -55,8 +57,8 @@ export function registerCommand(on: On): void {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'agentzero',
-      description: 'Set up, upgrade or check AgentZero in this project (init, upgrade, status)',
-      argumentHint: '<init|upgrade|status>',
+      description: 'Set up, upgrade, check or review AgentZero in this project (init, upgrade, status, review)',
+      argumentHint: '<init|upgrade|status|review>',
     })
     const data = sessionData(await $.session.id())
     const workspace = await locateWorkspace(data, () => $.session.root(), p => $.fs.stat(p).then(() => true, () => false))
@@ -75,7 +77,7 @@ export function registerCommand(on: On): void {
 
   on('command.run', { command: 'agentzero' }, async ($, e) => {
     const sub = e.args.trim().split(/\s+/)[0] ?? ''
-    if (sub !== 'init' && sub !== 'upgrade' && sub !== 'status') return { text: USAGE }
+    if (sub !== 'init' && sub !== 'upgrade' && sub !== 'status' && sub !== 'review') return { text: USAGE }
 
     const root = trimSlash(await $.session.root())
     const exists = (p: string) => $.fs.stat(p).then(() => true, () => false)
@@ -86,6 +88,20 @@ export function registerCommand(on: On): void {
       if (refusal !== null) return { text: refusal }
     } else if (workspace === null) {
       return { text: `AgentZero: ${root} is not inside an AgentZero workspace. Run /agentzero init in a project folder first.` }
+    }
+
+    if (sub === 'review' && workspace !== null) {
+      await $.ui.open({ id: REVIEW_PANE, title: REVIEW_TITLE })
+      const data = sessionData(await $.session.id())
+      const io: HudIo = {
+        run: (argv, init) => $.process.run(argv, init),
+        read: p => $.fs.read(p) as Promise<string>,
+        write: fn => update($, hudAtom, fn),
+        status: t => $.ui.status(t),
+        pluginRoot: $.plugin.root,
+      }
+      await data.gate.run(refreshJob(io, workspace))
+      return { text: '已打开 AgentZero 待确认面板。' }
     }
 
     const python = await findPython(argv => $.process.run(argv, { timeoutMs: PROBE_TIMEOUT_MS }))
