@@ -1,6 +1,6 @@
 {
   "name": "agentzero",
-  "version": "1.0.0-rc.1",
+  "version": "1.1.0-rc.1",
   "description": "AgentZero for Claude Code: all of AgentZero, plus hot set loading and a check of the operator's words.",
   "license": "MIT",
   "types": "./types/index.d.ts"
