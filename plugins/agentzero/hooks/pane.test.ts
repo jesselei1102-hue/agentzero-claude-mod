@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { KIND_LABEL, REVIEW_PANE, REVIEW_TITLE, paneResult, paneRows, reviewArgv } from './pane'
+import { KIND_LABEL, REVIEW_PANE, REVIEW_TITLE, mergeResult, paneResult, paneRows, reviewArgv } from './pane'
 
 const item = (id: string) => ({ id, kind: 'fact', sentence: id, provenance: 'agent proposed it', createdAt: null })
 
@@ -11,10 +11,10 @@ test('paneRows: open, decided and failed', () => {
     'fact:c': { item: c, outcome: 'rejected', message: '' },
   })
   expect(out.rows).toEqual([
-    { item: a, state: 'kept', message: null },
-    { item: b, state: 'failed', message: 'No pending item' },
-    { item: d, state: 'open', message: null },
-    { item: c, state: 'rejected', message: null },
+    { item: a, state: 'kept', message: null, actionable: false },
+    { item: b, state: 'failed', message: 'No pending item', actionable: true },
+    { item: d, state: 'open', message: null, actionable: true },
+    { item: c, state: 'rejected', message: null, actionable: false },
   ])
   expect(out.open).toBe(2)
   expect(out.done).toBe(2)
@@ -32,4 +32,20 @@ test('paneResult and reviewArgv', () => {
   expect(reviewArgv('/w', 'keep', 'fact:a')).toEqual(['/w/a0', 'memory', 'review', '--confirm', 'fact:a'])
   expect([KIND_LABEL.fact, KIND_LABEL.edge, KIND_LABEL.skill]).toEqual(['Fact', '关系', '技能'])
   expect([REVIEW_PANE, REVIEW_TITLE]).toEqual(['agentzero-review', 'AgentZero · 待确认'])
+})
+
+test('a failed press on an item no longer waiting stays listed with its error', () => {
+  const a = item('fact:a')
+  const out = paneRows([], { 'fact:a': { item: a, outcome: 'failed', message: 'no item waiting for confirmation with id fact:a' } })
+  expect(out.rows).toEqual([{ item: a, state: 'failed', message: 'no item waiting for confirmation with id fact:a', actionable: false }])
+  expect(out.open).toBe(0)
+  expect(out.done).toBe(0)
+})
+
+test('a failure never replaces a decision', () => {
+  const a = item('fact:a')
+  const kept = { 'fact:a': { item: a, outcome: 'kept' as const, message: '' } }
+  expect(mergeResult(kept, { item: a, outcome: 'failed', message: 'x' })).toEqual(kept)
+  expect(mergeResult({}, { item: a, outcome: 'failed', message: 'x' })['fact:a'].outcome).toBe('failed')
+  expect(mergeResult({ 'fact:a': { item: a, outcome: 'failed', message: 'x' } }, { item: a, outcome: 'rejected', message: '' })['fact:a'].outcome).toBe('rejected')
 })

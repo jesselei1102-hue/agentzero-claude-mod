@@ -65,13 +65,18 @@ function firstLine(text: string): string {
 
 const pythons = new Map<string, string>()
 
-async function pythonFor(io: Pick<HudIo, 'run' | 'read'>, workspace: string): Promise<string | null> {
+const NO_PYTHON = 'no usable Python 3.11 with PyYAML'
+
+async function cachedPython(io: Pick<HudIo, 'read'>, workspace: string): Promise<string | null> {
   try {
     const cached = firstLine(await io.read(`${workspace}/memory/traces/a0.python`))
-    if (cached !== '') return cached
+    return cached !== '' ? cached : null
   } catch {
-    // ./a0 has not run here yet; look for a Python as /agentzero init does
+    return null // ./a0 has not run here yet
   }
+}
+
+async function searchPython(io: Pick<HudIo, 'run'>, workspace: string): Promise<string | null> {
   const known = pythons.get(workspace)
   if (known !== undefined) return known
   const found = await findPython(argv => io.run(argv, { timeoutMs: PROBE_TIMEOUT_MS }))
@@ -80,8 +85,18 @@ async function pythonFor(io: Pick<HudIo, 'run' | 'read'>, workspace: string): Pr
 }
 
 export async function readSnapshot(io: Pick<HudIo, 'run' | 'read' | 'pluginRoot'>, workspace: string): Promise<SnapshotResult> {
-  const python = await pythonFor(io, workspace)
-  if (python === null) return { ok: false, error: 'no usable Python 3.11 with PyYAML' }
+  const cached = await cachedPython(io, workspace)
+  if (cached !== null) {
+    const first = await runScript(io, cached, workspace)
+    // ./a0 heals its own cache only when it next runs; until then, look for a Python here too
+    if (first.ok || (first.error !== 'could not run' && first.error !== NO_PYTHON)) return first
+  }
+  const python = await searchPython(io, workspace)
+  if (python === null || python === cached) return { ok: false, error: NO_PYTHON }
+  return runScript(io, python, workspace)
+}
+
+async function runScript(io: Pick<HudIo, 'run' | 'pluginRoot'>, python: string, workspace: string): Promise<SnapshotResult> {
   let ran: RunResult
   try {
     ran = await io.run([python, `${io.pluginRoot}/tools/snapshot.py`, workspace], {

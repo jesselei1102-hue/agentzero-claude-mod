@@ -3,7 +3,7 @@ import type { On } from 'claude-code'
 import type { HudState, PaneResults, PendingItem, RawOpen } from '../types'
 import { bandModel } from './band'
 import { cardForCall, type CallLike } from './cards'
-import { KIND_LABEL, REVIEW_PANE, REVIEW_TITLE, paneResult, paneRows, reviewArgv } from './pane'
+import { KIND_LABEL, REVIEW_PANE, REVIEW_TITLE, mergeResult, paneResult, paneRows, reviewArgv } from './pane'
 import { locateWorkspace, sessionData, writeMarks } from './session'
 import { EMPTY_HUD, refreshJob, type HudIo } from './snapshot'
 import { MUTED, PALETTE, bandSvg, cardSvg, paneHeaderSvg, pendingItemSvg } from './svg'
@@ -82,6 +82,10 @@ export function registerHud(on: On): void {
     if (workspace === null) return <Text color={MUTED}>这里不是 AgentZero 工作区。</Text>
 
     const hud = await read($, hudAtom)
+    if (hud.snapshot === null) {
+      // never "nothing waits" when the state could not be read
+      return <Text color={MUTED}>{hud.error !== null ? `记忆状态读取失败（${hud.error}）` : '记忆读取中…'}</Text>
+    }
     const { rows, open, done } = paneRows(hud.snapshot?.pending ?? [], await read($, paneResultsAtom))
     const decide = async (item: PendingItem, verb: 'keep' | 'reject') => {
       let ran
@@ -91,7 +95,7 @@ export function registerHud(on: On): void {
         ran = err instanceof Error ? err : new Error(String(err))
       }
       const result = paneResult(item, verb, ran)
-      await update($, paneResultsAtom, m => ({ ...m, [item.id]: result }))
+      await update($, paneResultsAtom, m => mergeResult(m, result))
       const io: HudIo = {
         run: (argv, init) => $.process.run(argv, init),
         read: p => $.fs.read(p) as Promise<string>,
@@ -119,7 +123,7 @@ export function registerHud(on: On): void {
               {row.state === 'kept' && <Text color={PALETTE.green.fg}>✓ 已保留</Text>}
               {row.state === 'rejected' && <Text color={MUTED}>✗ 已拒绝</Text>}
               {row.state === 'failed' && <Text color={PALETTE.red.fg}>{row.message ?? ''}</Text>}
-              {(row.state === 'open' || row.state === 'failed') && buttons(row.item)}
+              {row.actionable && buttons(row.item)}
             </Box>
           ))}
           {empty}
@@ -132,7 +136,7 @@ export function registerHud(on: On): void {
         {rows.map(row => (
           <Box flexDirection="column" gap={0}>
             <Svg source={pendingItemSvg(row)} alt={row.item.sentence} />
-            {(row.state === 'open' || row.state === 'failed') && buttons(row.item)}
+            {row.actionable && buttons(row.item)}
           </Box>
         ))}
         {empty}

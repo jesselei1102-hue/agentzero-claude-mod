@@ -120,3 +120,24 @@ test("a keep that fails shows the kernel's first error line and keeps the button
   expect((await sources(ui))[1]).toContain('No pending item fact:a')
   expect(await ui.find({ key: 'az-keep-fact:a' })).toBeDefined()
 })
+
+test('a keep on an item handled elsewhere shows the error, not all clear', async ($, on) => {
+  const w = world(on)
+  w.responder = () => ({ exitCode: 1, stderr: 'no item waiting for confirmation with id fact:a' })
+  await $.session.start(START)
+  const ui = await mountPane($)
+  w.snapshotJson = EMPTY
+  await ui.press({ key: 'az-keep-fact:a' })
+  expect((await sources(ui)).join('')).toContain('no item waiting for confirmation')
+  expect(await ui.find({ text: '没有等你确认的东西 ✓' })).toBeUndefined()
+  expect(await ui.find({ key: 'az-keep-fact:a' })).toBeUndefined()
+})
+
+test('with no snapshot the pane says why, not all clear', async ($, on) => {
+  const w = world(on)
+  w.snapshotJson = 'not json'
+  await $.session.start(START)
+  const ui = await mountPane($)
+  expect(await ui.find({ text: '记忆状态读取失败（unreadable snapshot）' })).toBeDefined()
+  expect(await ui.find({ text: '没有等你确认的东西 ✓' })).toBeUndefined()
+})

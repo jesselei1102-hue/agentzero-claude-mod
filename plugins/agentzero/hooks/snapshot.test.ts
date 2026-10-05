@@ -83,7 +83,8 @@ test('readSnapshot reports exit, timeout and no Python', async () => {
   const timeout = fakeIo({ python: '/opt/py', answer: () => new Error('timed out after 2000 ms') })
   expect(await readSnapshot(timeout.io, '/w3')).toEqual({ ok: false, error: 'timed out' })
   const broken = fakeIo({ python: '/opt/py', answer: () => new Error('spawn ENOENT') })
-  expect(await readSnapshot(broken.io, '/w4')).toEqual({ ok: false, error: 'could not run' })
+  // the cached Python cannot start and no other is found
+  expect(await readSnapshot(broken.io, '/w4')).toEqual({ ok: false, error: 'no usable Python 3.11 with PyYAML' })
   const exit = fakeIo({ python: '/opt/py', answer: () => ({ exitCode: 1, stderr: '\nTraceback (most recent call last):\nX' }) })
   expect(await readSnapshot(exit.io, '/w5')).toEqual({ ok: false, error: 'exit 1: Traceback (most recent call last):' })
   const none = fakeIo({ answer: () => ({ exitCode: 1 }) })
@@ -133,4 +134,21 @@ test('RefreshGate keeps going after a job throws', async () => {
     log.push('ran')
   })
   expect(log).toEqual(['ran'])
+})
+
+test('readSnapshot looks for another Python when the cached one is gone or lacks PyYAML', async () => {
+  const gone = fakeIo({
+    python: '/gone/py',
+    answer: argv =>
+      argv[0] === '/gone/py' ? new Error('spawn ENOENT') : argv[1] === '-c' ? { exitCode: argv[0] === 'python3' ? 0 : 1 } : { exitCode: 0, stdout: OK_JSON },
+  })
+  expect(await readSnapshot(gone.io, '/w7')).toEqual(OK)
+  expect(gone.calls.filter(c => c.argv[1] === '/plug/tools/snapshot.py').map(c => c.argv[0])).toEqual(['/gone/py', 'python3'])
+  const noYaml = fakeIo({
+    python: '/old/py',
+    answer: argv =>
+      argv[0] === '/old/py' ? { exitCode: 0, stdout: '{"schema":1,"error":"no usable Python 3.11 with PyYAML"}' }
+        : argv[1] === '-c' ? { exitCode: argv[0] === 'python3' ? 0 : 1 } : { exitCode: 0, stdout: OK_JSON },
+  })
+  expect(await readSnapshot(noYaml.io, '/w8')).toEqual(OK)
 })

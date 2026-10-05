@@ -81,3 +81,12 @@ def test_old_workspace_reports_upgrade(ws, tmp_path):
 def test_missing_workspace_is_an_error_not_a_crash(ws, tmp_path):
     code, snap = snapshot(tmp_path / "nowhere", pythonpath=ws / "src")
     assert code == 0 and isinstance(snap["error"], str)
+
+
+def test_python_without_pyyaml_says_so(ws, tmp_path):
+    fake = tmp_path / "noyaml" / "yaml"
+    fake.mkdir(parents=True)
+    (fake / "__init__.py").write_text('raise ImportError("No module named yaml", name="yaml")\n')
+    code, snap = snapshot(ws, pythonpath=f"{tmp_path / 'noyaml'}{os.pathsep}{ws / 'src'}")
+    assert code == 0
+    assert snap == {"schema": 1, "error": "no usable Python 3.11 with PyYAML"}

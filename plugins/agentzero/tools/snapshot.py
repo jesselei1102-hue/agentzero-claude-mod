@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 UPGRADE = "this workspace's AgentZero is too old for the HUD; run /agentzero upgrade"
+NO_PYTHON = "no usable Python 3.11 with PyYAML"
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}")
 
 
@@ -35,11 +36,20 @@ def _hot_set(memory_dir: Path):
 
 
 def snapshot(workspace: Path) -> dict:
+    # The plugin may have found a Python that is too old or lacks PyYAML; say that, not "upgrade".
+    try:
+        import yaml  # noqa: F401
+    except ImportError:
+        return {"schema": 1, "error": NO_PYTHON}
+    if sys.version_info < (3, 11):
+        return {"schema": 1, "error": NO_PYTHON}
     try:
         from memory.lifecycle import live_fact_ids
         from memory.review import collect_pending
-    except (ImportError, AttributeError):
-        return {"schema": 1, "error": UPGRADE}
+    except ImportError as exc:
+        if (exc.name or "").startswith("memory"):
+            return {"schema": 1, "error": UPGRADE}
+        raise
 
     if not (workspace / "memory").is_dir():
         return {"schema": 1, "error": f"no memory/ directory under {workspace}"}
