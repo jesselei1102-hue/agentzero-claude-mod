@@ -1,4 +1,4 @@
-Status: design approved in conversation 2026-10-05; this written spec waits for the operator's review.
+Status: approved by the operator 2026-10-05; amended the same day with four findings from planning (card rows, folded groups, terminal fallback, raw-command button).
 
 # Spec: the memory HUD (plugin 1.1, sub-project A)
 
@@ -118,7 +118,7 @@ One SVG strip, left to right, then one real button:
 | context ring | blue arc, percent | amber from 80%, with the text "压缩后自动重新加载" |
 | (snapshot failed) | — | one grey pill "记忆状态读取失败" replaces active and pending; the reason shows in the status line |
 
-The band shows only inside a workspace, and yields to a survey (`hasSurvey`). The context percent comes from `$.session.usage().context.percent`, read at each draw. Times are relative ("3 分钟前") and recomputed at each draw.
+The band shows only inside a workspace, and yields to a survey (`hasSurvey`). The terminal has no `Svg`: there the band, the pane and the cards draw the same words as coloured `Text`. The context percent comes from `$.session.usage().context.percent`, read at each draw. Times are relative ("3 分钟前") and recomputed at each draw.
 
 ### The review pane
 
@@ -138,10 +138,13 @@ A card replaces the tool row of a finished `./a0` write. The card is a full-widt
 | Command (and output) | Icon | Label | Colour | Title | Detail |
 |---|---|---|---|---|---|
 | `memory remember`, `remembered:` | 📌 | 已记住 | green | the sentence | `你的原话 “<said>” ✓ 已核对` |
-| `memory remember` rewritten by the word check, or `memory propose fact`, `proposed:` | ⏳ | 待你确认 | amber | the sentence | `引用不在你说过的话里，已改为提议` / `助手推断，等你确认` |
+| `memory remember` rewritten by the word check, `proposed:` | ⏳ | 待你确认 | amber | the sentence | `引用不在你说过的话里，已改为提议` |
+| `memory remember` not rewritten, `proposed:` (the kernel's own downgrade) | ⏳ | 待你确认 | amber | the sentence | `句子比你的原话多，已改为提议` |
+| `memory propose fact`, `proposed:` | ⏳ | 待你确认 | amber | the sentence | `助手推断，等你确认` |
+| `already remembered:` / `already on record (<status>):` | 📌 or ⏳ by status | 已记住 / 待你确认 | green / amber | the sentence | `已在记录中` |
 | `memory remember` the check could not read | 📌 | 已记住 | green, grey outline | the sentence | `引用未核对` |
 | `memory forget` | 🗑 | 已撤回 | grey | the target | — |
-| `memory review --confirm` / `--reject` | ✓ / ✗ | 已确认 / 已拒绝 | green / grey | the id | — |
+| `memory review --confirm` / `--reject` | ✓ / ✗ | 已确认 / 已拒绝 | green / grey | the sentence | the id |
 | `memory propose entity|edge|episode`, `memory link`, `memory promote` | ⏳ / 🔗 | 待你确认 / 已关联 | amber / blue | the label or relation | — |
 | `skills draft` | 🧩 | 技能草稿 | amber | the skill id | its description |
 | `knowledge add` | 📚 | 资料已加入 | blue | the name | the type |
@@ -149,7 +152,8 @@ A card replaces the tool row of a finished `./a0` write. The card is a full-widt
 
 - The card is drawn from the command and the stored output. If the call is running, errored, or its output does not start with the line the table names, the engine's own row is kept.
 - The word check (1.0) marks the calls it rewrote or could not read, so the card can tell "rewritten" from "proposed by the agent". This mark lives in module state keyed by `tool_use_id`.
-- **Verify first:** whether a plugin can redraw the desktop's folded group row (`ToolGroup`). If yes, the folded row shows a summary of the writes inside ("📌 记住 1 · ⏳ 待确认 1"). If no, this is recorded as a limit.
+- A folded group of tool calls (`ToolGroup`) that holds a finished AgentZero write or skill use is drawn expanded (the engine's `isExpanded` prop), so each card shows. A group without one stays folded.
+- **Verify by hand on the desktop:** that the expanded group shows the cards, and that "原始命令" redraws the row when pressed. If the row does not redraw, the button is removed and the engine's own result block under the row is the raw output.
 
 ### Refresh
 
