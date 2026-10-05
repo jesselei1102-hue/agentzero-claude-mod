@@ -100,3 +100,15 @@ test('a long quote is cut inside the quotes, keeping ✓ 已核对', () => {
   expect(card?.detail?.endsWith('…” ✓ 已核对')).toBe(true)
   expect(Array.from(card?.detail ?? '').length <= 44).toBe(true)
 })
+
+test('a shell read of a skill file is a skill card', () => {
+  const lab = 'ls skills/builtin/ && cat skills/builtin/analyze.md 2>/dev/null || cat skills/builtin/analyze/*.md; echo ----; cat skills/builtin/_routing.md'
+  const call = (command: string) => ({ tool: 'Bash', input: { command }, output: { stdout: 'x', stderr: '' }, isRunning: false, isErrored: false, isInterrupted: false })
+  const none = new Map()
+  expect(cardForCall(call(lab), '/w', none)).toEqual({ icon: '🧭', label: '使用技能', tone: 'blue', title: 'analyze', detail: null, outline: false })
+  expect(cardForCall(call('cat /w/skills/deploy/SKILL.md'), '/w', none)?.title).toBe('deploy')
+  expect(cardForCall(call('head -40 skills/builtin/report.md skills/builtin/research.md'), '/w', none)?.title).toBe('report、research')
+  expect(cardForCall(call('cat /other/skills/builtin/analyze.md'), '/w', none)).toBeNull()
+  expect(cardForCall(call('cat skills/builtin/_routing.md'), '/w', none)).toBeNull()
+  expect(cardForCall(call('ls skills/builtin/analyze.md'), '/w', none)).toBeNull()
+})

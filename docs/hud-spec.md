@@ -148,11 +148,11 @@ A card replaces the tool row of a finished `./a0` write. The card is a full-widt
 | `memory propose entity|edge|episode`, `memory link`, `memory promote` | ⏳ / 🔗 | 待你确认 / 已关联 | amber / blue | the label or relation | — |
 | `skills draft` | 🧩 | 技能草稿 | amber | the skill id | its description |
 | `knowledge add` | 📚 | 资料已加入 | blue | the name | the type |
-| Read of `skills/builtin/<name>.md` or `skills/<id>/…`, or `./a0 skills run <id>` | 🧭 | 使用技能 | blue | the skill name | — |
+| Read of `skills/builtin/<name>.md` or `skills/<id>/…`, by the Read tool or by a shell read (`cat`, `head`, `tail`, `less`, `more`, `sed`, `bat`), or `./a0 skills run <id>` | 🧭 | 使用技能 | blue | the skill name (several joined with `、`) | — |
 
 - The card is drawn from the command and the stored output. If the call is running, errored, or its output does not start with the line the table names, the engine's own row is kept.
 - The word check (1.0) marks the calls it rewrote or could not read, so the card can tell "rewritten" from "proposed by the agent". This mark lives in module state keyed by `tool_use_id`.
-- A folded group of tool calls (`ToolGroup`) that holds a finished AgentZero write or skill use is drawn expanded (the engine's `isExpanded` prop), so each card shows. A group without one stays folded.
+- A folded group of tool calls (`ToolGroup`) that holds a finished AgentZero write or skill use must show its cards without a click. The desktop app folds every run of commands ("Ran 2 commands") and ignores the engine's `isExpanded` prop, but it draws a plugin's tree for the group under its own fold header (probe, 2026-10-06). So on the desktop the group draws its cards itself, then `另有 <n> 条命令` for the other calls in it; on the terminal it is drawn expanded. A group without a card is left as the engine draws it.
 - **Verify by hand on the desktop:** that the expanded group shows the cards, and that "原始命令" redraws the row when pressed. If the row does not redraw, the button is removed and the engine's own result block under the row is the raw output.
 
 ### Refresh

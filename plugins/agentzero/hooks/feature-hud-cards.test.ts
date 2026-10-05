@@ -72,14 +72,26 @@ test('a read of a builtin skill draws the skill card', async ($, on) => {
   expect((await ui.find({ type: 'Svg' }))?.props.alt).toBe('使用技能：analyze')
 })
 
-test('a folded group with a write opens; others stay folded', async ($, on) => {
+test('on the terminal a folded group with a write opens; others stay folded', async ($, on) => {
   const w = world(on)
   const group = (calls: unknown[], isExpanded = false) =>
-    $.ui.render({ surface: 'desktop', component: 'ToolGroup', props: { calls, isActive: false, isExpanded } } as never)
+    $.ui.render({ surface: 'terminal', component: 'ToolGroup', props: { calls, isActive: false, isExpanded } } as never)
   await group([ROW()])
   expect(w.groupExpanded.at(-1)).toBe(true)
   await group([ROW({ input: { command: 'ls' }, output: { stdout: 'x', stderr: '' } })])
   expect(w.groupExpanded.at(-1)).toBe(false)
   await group([ROW({ isRunning: true })])
   expect(w.groupExpanded.at(-1)).toBe(false)
+})
+
+test('on the desktop a folded group with a write shows its cards itself', async ($, on) => {
+  const w = world(on)
+  const group = (calls: unknown[]) =>
+    $.ui.render({ surface: 'desktop', component: 'ToolGroup', props: { calls, isActive: false, isExpanded: false } } as never)
+  const drawn = JSON.stringify(await group([ROW(), ROW({ tool_use_id: 'tu2', input: { command: 'ls' }, output: { stdout: 'x', stderr: '' } })]))
+  expect(drawn).toContain('已记住：Use pnpm, never npm')
+  expect(drawn).toContain('另有 1 条命令')
+  expect(w.engineDrew).toEqual([])
+  await group([ROW({ input: { command: 'ls' }, output: { stdout: 'x', stderr: '' } })])
+  expect(w.engineDrew).toEqual(['ToolGroup'])
 })

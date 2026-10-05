@@ -120,6 +120,23 @@ export function cardForRead(filePath: string, workspace: string): Card | null {
   return skill(name)
 }
 
+// Agents often read a skill through the shell (AgentZero #92): `cat skills/builtin/analyze.md`.
+const READ_VERB = /(^|[\s;&|(])(cat|head|tail|less|more|sed|bat)\s/
+const SKILL_PATH = /(?:^|[\s'"=])((?:\/[^\s'"]*\/)?skills\/(?:builtin\/([A-Za-z0-9][\w-]*)\.md|([A-Za-z0-9][\w-]*)\/SKILL\.md|([A-Za-z0-9][\w-]*)\.md))(?=$|[\s'";|&)])/g
+
+export function skillsReadByShell(command: string, workspace: string): string[] {
+  if (!READ_VERB.test(command)) return []
+  const names: string[] = []
+  for (const m of command.matchAll(SKILL_PATH)) {
+    const path = m[1]
+    if (path.startsWith('/') && !path.startsWith(`${workspace}/skills/`)) continue
+    const name = m[2] ?? m[3] ?? m[4]
+    if (m[3] === 'builtin') continue
+    if (!names.includes(name)) names.push(name)
+  }
+  return names
+}
+
 function field(value: unknown, key: string): string {
   const v = typeof value === 'object' && value !== null ? (value as Record<string, unknown>)[key] : undefined
   return typeof v === 'string' ? v : ''
@@ -129,7 +146,11 @@ export function cardForCall(call: CallLike, workspace: string, marks: ReadonlyMa
   if (call.isRunning || call.isErrored || call.isInterrupted) return null
   if (call.tool === 'Bash') {
     const mark = call.tool_use_id !== undefined ? marks.get(call.tool_use_id) : undefined
-    return cardForBash(field(call.input, 'command'), field(call.output, 'stdout'), mark)
+    const command = field(call.input, 'command')
+    const written = cardForBash(command, field(call.output, 'stdout'), mark)
+    if (written !== null) return written
+    const read = skillsReadByShell(command, workspace)
+    return read.length > 0 ? skill(read.join('、')) : null
   }
   if (call.tool === 'Read') return cardForRead(field(call.input, 'file_path'), workspace)
   return null

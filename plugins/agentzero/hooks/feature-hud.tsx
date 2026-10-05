@@ -179,14 +179,27 @@ export function registerHud(on: On): void {
     )
   })
 
-  // A folded group hides the cards inside it; one that holds a write is drawn open.
+  // A folded group hides the cards inside it. The terminal draws a group open when asked;
+  // the desktop ignores that (probe, 2026-10-06) but shows a tree the plugin draws under its
+  // own fold header, so there the group draws its cards itself.
   on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
     if (e.props.isExpanded) return next(e)
     const data = sessionData(await $.session.id())
     const workspace = await locateWorkspace(data, () => $.session.root(), p => $.fs.stat(p).then(() => true, () => false))
     if (workspace === null) return next(e)
-    const hasCard = e.props.calls.some(call => cardForCall(call, workspace, writeMarks) !== null)
-    return hasCard ? next({ ...e, props: { ...e.props, isExpanded: true } }) : next(e)
+    const cards = e.props.calls.map(call => cardForCall(call, workspace, writeMarks)).filter(card => card !== null)
+    if (cards.length === 0) return next(e)
+    if (e.surface === 'terminal') return next({ ...e, props: { ...e.props, isExpanded: true } })
+    const { Box, Text, Svg } = $.ui.resolve(e) as Record<string, (props: Record<string, unknown>) => never>
+    const others = e.props.calls.length - cards.length
+    return (
+      <Box flexDirection="column" gap={1}>
+        {cards.map(card => (
+          <Svg source={cardSvg(card)} alt={`${card.label}：${card.title}`} />
+        ))}
+        {others > 0 && <Text color={MUTED}>{`另有 ${others} 条命令`}</Text>}
+      </Box>
+    )
   })
 
   on('ui.close', async ($, e, next) => {
