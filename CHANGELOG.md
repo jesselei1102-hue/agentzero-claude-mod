@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — kernel 0.4.7 (333cd6e)
+
+- `kernel/` carries AgentZero 0.4.7 (commit 333cd6e). From 0.4.6: a Skill read through the shell now counts as loaded (AgentZero #92). From 0.4.7: a drafted Skill no longer lists another task's scripts as its own when the run's result sat directly in `work/` (AgentZero #93, found in the lab workspace).
+- Verified in the lab workspace: a Skill is offered and drafted when the operator says a task recurs (#91) and after a script turns a batch of inputs into the result (#72). See `docs/verify.md`.
+
 ## 1.0.0-rc.1 — kernel 0.4.5 (c7fcd47)
 
 First release candidate. Carries AgentZero 0.4.5 (commit c7fcd47) in `kernel/`, checked file by file against `kernel/SOURCE.json`.

@@ -209,22 +209,38 @@ _NOT_OURS = frozenset({"node_modules", "__pycache__", ".venv", "venv", ".git"})
 
 
 def _source_run_scripts(workspace: Path, runs: list[str], procedure: str) -> list[str]:
-    """Code files in the folders the source runs cite, which the procedure does not name.
+    """Code files the source runs left, which the procedure does not name.
 
     Turn-by-turn test (2026-09-27): Codex drafted a prose Skill beside the scripts it had
     written, and the next run rewrote them from scratch. Without a confirmed script the
     Skill can still say where the last run's code is (operator, 2026-09-27).
+
+    A cited path's folder is searched, except `work/` itself: it pools every task's
+    output, and the Lab (2026-10-05) listed another task's sensor scripts in a Skill for
+    turning a form into JSON. A run's own Trace names what it wrote, so the code in the
+    `work_files` of a cited Trace, or of a Trace naming a cited path, is listed too.
     """
     root = workspace.resolve()
+    pooled = (workspace / "work").resolve()
+    traces = _traces_work_files(workspace)
     folders: list[Path] = []
+    written: list[str] = []
     for cited in runs:
+        by_run = [traces[cited]] if cited in traces else []
+        by_run += [files for files in traces.values() if cited in files]
+        for files in by_run:
+            written.extend(name for name in files if name not in written)
         path = (workspace / cited).resolve()
         if path == root or root not in path.parents or not path.exists():
             continue  # a Trace or Score id, not a path the run left
         folder = path if path.is_dir() else path.parent
-        if folder != root and folder not in folders:
+        if folder not in (root, pooled) and folder not in folders:
             folders.append(folder)
     found: list[str] = []
+    for name in written:
+        path = workspace / name
+        if path.is_file() and path.suffix in _CODE_SUFFIXES and name not in procedure:
+            found.append(name)
     for folder in folders:
         for path in sorted(folder.rglob("*")):
             if not path.is_file() or path.suffix not in _CODE_SUFFIXES:
@@ -235,6 +251,21 @@ def _source_run_scripts(workspace: Path, runs: list[str], procedure: str) -> lis
             if name not in found and name not in procedure:
                 found.append(name)
     return found[:20]
+
+
+def _traces_work_files(workspace: Path) -> dict[str, list[str]]:
+    """Run id → the `work_files` its Trace names; unreadable Traces are skipped."""
+    traces_dir = workspace / "memory" / "traces"
+    out: dict[str, list[str]] = {}
+    for path in sorted(traces_dir.glob("*.yaml")) if traces_dir.is_dir() else []:
+        try:
+            trace = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError):
+            continue
+        if isinstance(trace, dict):
+            files = trace.get("work_files") or []
+            out[str(trace.get("run_id") or path.stem)] = [str(name) for name in files]
+    return out
 
 
 def _scripts_section(names: list[str]) -> str:

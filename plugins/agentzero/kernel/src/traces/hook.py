@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 from collections.abc import Mapping
@@ -162,7 +163,9 @@ def _fold(
             meta["prompt"] = task_as_asked(str(line.get("prompt") or ""))
             meta["started_epoch"] = line.get("at", meta.get("started_epoch"))
         elif event == _SHELL_EVENT:
-            _record_command(meta, str(line.get("command") or ""))
+            command = str(line.get("command") or "")
+            _record_command(meta, command)
+            _record_shell_reads(meta, command, workspace_root)
         elif event == _EDIT_EVENT:
             file_path = str(line.get("file_path") or "")
             if _is_output_yaml(file_path, workspace_root):
@@ -269,6 +272,26 @@ def _is_output_yaml(file_path: str, workspace_root: Path) -> bool:
         return False
     memory_root = (workspace_root / "memory").resolve()
     return resolved.parent != memory_root
+
+
+_SKILL_PATH = re.compile(
+    r"""(?:^|[\s'"=(])((?:[^\s'"=(]*/)?skills/[^\s'"]+?\.md)(?=$|[\s'";|&)])"""
+)
+
+
+def _record_shell_reads(meta: dict[str, Any], command: str, workspace_root: Path) -> None:
+    """A Skill read with `cat skills/x.md` counts as loaded, as a Read-tool read does.
+
+    Codex has no Read tool: it reads every file through the shell. Its runs recorded no
+    Skill at all, and lint nominated a Skill read in four runs for retirement (SETTLED #92).
+    Paths outside the workspace's `skills/` (a harness's own skills) are not counted.
+    """
+    for raw in _SKILL_PATH.findall(command):
+        path = Path(raw)
+        if path.name.startswith("_"):
+            continue  # _routing.md, _shared.md: reference docs, not Skills (#47)
+        _record_loaded(meta, str(path if path.is_absolute() else workspace_root / path),
+                       workspace_root)
 
 
 def _record_loaded(meta: dict[str, Any], file_path: str, workspace_root: Path) -> None:

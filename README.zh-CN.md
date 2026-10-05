@@ -128,6 +128,7 @@ AgentZero 自己也可能把 Fact 保存为 proposed。当 Fact 说的比你的�
 - **只支持 Claude Code。** Codex 和 Cursor 不使用这个插件。
 - **截短的引用能通过检查。** 检查只能证明这些话是你说的，不能证明它们是你说的全部。
 - **插件只读一种命令写法。** 写法是：可选的 `cd <文件夹> &&`，然后是 `./a0 memory remember ...`（或 `python -m memory remember ...`）。值必须是带引号的普通文字。它只读这几个选项：`--said`、`--fact-key`、`--scope`、`--tag`、`--source-run`。其他写法，命令照原样运行。你会看到这条消息：`the operator's words in this remember were not checked`（这条 remember 里的话没有核对）。
+- **只有调用了 MCP 工具的任务，才能被发现是重复的。** **Skill** 是为一类任务保存下来的做法。**MCP 工具**是你接入 Claude Code 的服务器提供的工具。AgentZero 比较每次运行调用了哪些 MCP 工具，以此发现又出现了的任务。一个任务如果不调用 MCP 工具，比如只用文件和命令行写笔记，就永远不会被看成重复，所以 AgentZero 不会因为重复而提议做成 Skill。助手在两种情况下仍会提议做成 Skill（已测试）：你说一类任务以后每次都这样做；它写了一个脚本，把一批文件变成你要的结果。
 - **桌面 app 没有状态栏。** 插件的每条消息也会以短暂弹出的提示（toast）显示。
 - **还没测试：** Windows；终端和 VS Code（桌面 app 已测试）；在从没用过 AgentZero 的电脑上首次安装。
 - **插件使用 Claude Code 的一个抢先体验功能（function hooks）。** 它在不同的 Claude Code 版本之间可能会变。我们在 2.1.280 版（终端）和 2.1.286 版（桌面 app）上测试过。

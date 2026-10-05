@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentzero"
-version = "0.4.5"
+version = "0.4.7"
 description = "Agent Learning Convention Layer — System prompt and file organization conventions for self-learning agents"
 readme = "README.md"
 license = "MIT"
