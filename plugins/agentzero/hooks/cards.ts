@@ -142,6 +142,25 @@ function field(value: unknown, key: string): string {
   return typeof v === 'string' ? v : ''
 }
 
+// What a call in a folded group shows. The desktop keeps a group the engine drew while a call
+// ran, so a call recognisable from its input alone is drawn by the plugin from the start:
+// a placeholder while it runs, its card when it ends, "没有记下" when it fails.
+export function groupCard(call: CallLike, workspace: string, marks: ReadonlyMap<string, WriteMark>): Card | null {
+  if (call.tool === 'Read') return call.isErrored ? null : cardForRead(field(call.input, 'file_path'), workspace)
+  if (call.tool !== 'Bash') return null
+  const command = field(call.input, 'command')
+  const read = skillsReadByShell(command, workspace)
+  const c = a0Command(command)
+  const isSkillRun = c !== null && c.module === 'skills' && c.sub === 'run'
+  if (!isMemoryWrite(command) && !isSkillRun) return read.length > 0 && !call.isErrored ? skill(read.join('、')) : null
+  if (isSkillRun) return call.isErrored ? null : skill(c.args[0] ?? '')
+  const parsed = parseRemember(command)
+  const title = parsed.kind === 'remember' ? parsed.call.sentence : `${(c as A0Command).module} ${(c as A0Command).sub}`
+  if (call.isRunning) return card('⏳', '正在记录', 'grey', title, null)
+  if (call.isErrored || call.isInterrupted) return card('✗', '没有记下', 'grey', title, null)
+  return cardForCall(call, workspace, marks) ?? card('✓', '已运行', 'grey', title, null)
+}
+
 export function cardForCall(call: CallLike, workspace: string, marks: ReadonlyMap<string, WriteMark>): Card | null {
   if (call.isRunning || call.isErrored || call.isInterrupted) return null
   if (call.tool === 'Bash') {

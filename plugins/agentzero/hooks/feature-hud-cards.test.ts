@@ -95,3 +95,12 @@ test('on the desktop a folded group with a write shows its cards itself', async 
   await group([ROW({ input: { command: 'ls' }, output: { stdout: 'x', stderr: '' } })])
   expect(w.engineDrew).toEqual(['ToolGroup'])
 })
+
+test('on the desktop a group with a running write is drawn by the plugin from the start', async ($, on) => {
+  const w = world(on)
+  const drawn = JSON.stringify(
+    await $.ui.render({ surface: 'desktop', component: 'ToolGroup', props: { calls: [ROW({ isRunning: true, output: undefined })], isActive: true, isExpanded: false } } as never),
+  )
+  expect(drawn).toContain('正在记录')
+  expect(w.engineDrew).toEqual([])
+})

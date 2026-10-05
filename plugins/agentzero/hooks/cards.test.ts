@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { a0Command, cardForBash, cardForCall, cardForRead, isMemoryWrite } from './cards'
+import { a0Command, cardForBash, cardForCall, cardForRead, groupCard, isMemoryWrite } from './cards'
 
 const R = './a0 memory remember "Use pnpm, never npm" --said "Use pnpm in this project, never npm."'
 
@@ -111,4 +111,16 @@ test('a shell read of a skill file is a skill card', () => {
   expect(cardForCall(call('cat /other/skills/builtin/analyze.md'), '/w', none)).toBeNull()
   expect(cardForCall(call('cat skills/builtin/_routing.md'), '/w', none)).toBeNull()
   expect(cardForCall(call('ls skills/builtin/analyze.md'), '/w', none)).toBeNull()
+})
+
+test('groupCard draws an AgentZero call from the start', () => {
+  const base = { tool: 'Bash', input: { command: R }, isRunning: false, isErrored: false, isInterrupted: false }
+  const none = new Map()
+  expect(groupCard({ ...base, isRunning: true }, '/w', none)).toEqual({ icon: '⏳', label: '正在记录', tone: 'grey', title: 'Use pnpm, never npm', detail: null, outline: false })
+  expect(groupCard({ ...base, input: { command: './a0 memory propose fact "S"' }, isRunning: true }, '/w', none)?.title).toBe('memory propose')
+  expect(groupCard({ ...base, isErrored: true, output: 'Exit code 1' }, '/w', none)).toEqual({ icon: '✗', label: '没有记下', tone: 'grey', title: 'Use pnpm, never npm', detail: null, outline: false })
+  expect(groupCard({ ...base, output: { stdout: 'remembered: a — Use pnpm, never npm\n', stderr: '' } }, '/w', none)?.label).toBe('已记住')
+  expect(groupCard({ ...base, input: { command: 'cat skills/builtin/analyze.md' }, isRunning: true }, '/w', none)?.label).toBe('使用技能')
+  expect(groupCard({ ...base, input: { command: 'ls' }, isRunning: true }, '/w', none)).toBeNull()
+  expect(groupCard({ ...base, input: { command: 'ls' }, output: { stdout: 'x', stderr: '' } }, '/w', none)).toBeNull()
 })

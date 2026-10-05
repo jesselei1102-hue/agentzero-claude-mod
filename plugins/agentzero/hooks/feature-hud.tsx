@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { On } from 'claude-code'
 import type { HudState, PaneResults, PendingItem, RawOpen } from '../types'
 import { bandModel } from './band'
-import { cardForCall, type CallLike } from './cards'
+import { cardForCall, groupCard, type CallLike } from './cards'
 import { KIND_LABEL, REVIEW_PANE, REVIEW_TITLE, mergeResult, paneResult, paneRows, reviewArgv } from './pane'
 import { locateWorkspace, sessionData, writeMarks } from './session'
 import { EMPTY_HUD, refreshJob, type HudIo } from './snapshot'
@@ -187,9 +187,12 @@ export function registerHud(on: On): void {
     const data = sessionData(await $.session.id())
     const workspace = await locateWorkspace(data, () => $.session.root(), p => $.fs.stat(p).then(() => true, () => false))
     if (workspace === null) return next(e)
-    const cards = e.props.calls.map(call => cardForCall(call, workspace, writeMarks)).filter(card => card !== null)
+    if (e.surface === 'terminal') {
+      const done = e.props.calls.some(call => cardForCall(call, workspace, writeMarks) !== null)
+      return done ? next({ ...e, props: { ...e.props, isExpanded: true } }) : next(e)
+    }
+    const cards = e.props.calls.map(call => groupCard(call, workspace, writeMarks)).filter(card => card !== null)
     if (cards.length === 0) return next(e)
-    if (e.surface === 'terminal') return next({ ...e, props: { ...e.props, isExpanded: true } })
     const { Box, Text, Svg } = $.ui.resolve(e) as Record<string, (props: Record<string, unknown>) => never>
     const others = e.props.calls.length - cards.length
     return (
