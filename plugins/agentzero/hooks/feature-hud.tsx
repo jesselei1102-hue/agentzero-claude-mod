@@ -1,17 +1,30 @@
 import { atom, read, update } from 'claude-code'
 import type { On } from 'claude-code'
-import type { HudState, PaneResults, PendingItem } from '../types'
+import type { HudState, PaneResults, PendingItem, RawOpen } from '../types'
 import { bandModel } from './band'
+import { cardForCall, type CallLike } from './cards'
 import { KIND_LABEL, REVIEW_PANE, REVIEW_TITLE, paneResult, paneRows, reviewArgv } from './pane'
-import { locateWorkspace, sessionData } from './session'
+import { locateWorkspace, sessionData, writeMarks } from './session'
 import { EMPTY_HUD, refreshJob, type HudIo } from './snapshot'
-import { MUTED, PALETTE, bandSvg, paneHeaderSvg, pendingItemSvg } from './svg'
+import { MUTED, PALETTE, bandSvg, cardSvg, paneHeaderSvg, pendingItemSvg } from './svg'
 
 const hudAtom = atom({ plugin: 'agentzero', key: 'hud' } as const, EMPTY_HUD as HudState)
 const hotSetErrorAtom = atom({ plugin: 'agentzero', key: 'hotSetError' } as const, null as string | null)
 const paneResultsAtom = atom({ plugin: 'agentzero', key: 'paneResults' } as const, {} as PaneResults)
+const rawOpenAtom = atom({ plugin: 'agentzero', key: 'rawOpen' } as const, {} as RawOpen)
 
 const KEEP_TIMEOUT_MS = 10_000
+
+function field(value: unknown, key: string): string {
+  const v = typeof value === 'object' && value !== null ? (value as Record<string, unknown>)[key] : undefined
+  return typeof v === 'string' ? v : ''
+}
+
+// What "原始命令" shows: the command and its output for Bash, the path for a Read.
+function rawText(call: CallLike): string {
+  if (call.tool === 'Read') return field(call.input, 'file_path')
+  return `$ ${field(call.input, 'command')}\n${field(call.output, 'stdout')}`.trimEnd()
+}
 
 export function registerHud(on: On): void {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -125,6 +138,51 @@ export function registerHud(on: On): void {
         {empty}
       </Box>
     )
+  })
+
+  on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
+    const data = sessionData(await $.session.id())
+    const workspace = await locateWorkspace(data, () => $.session.root(), p => $.fs.stat(p).then(() => true, () => false))
+    if (workspace === null) return next(e)
+    const call: CallLike = e.props
+    const card = cardForCall(call, workspace, writeMarks)
+    if (card === null) return next(e)
+
+    const id = e.props.tool_use_id
+    const open = (await read($, rawOpenAtom))[id] === true
+    const { Box, Text, Button, Code, Svg } = $.ui.resolve(e) as Record<string, (props: Record<string, unknown>) => never>
+    const toggle = (
+      <Button key={`az-raw-${id}`} label={open ? '收起' : '原始命令'} plain={true} dimColor={true}
+        onPress={() => update($, rawOpenAtom, m => ({ ...m, [id]: !open }))} />
+    )
+    const raw = open ? <Code language="bash" source={rawText(call)} /> : null
+    if (e.surface === 'terminal') {
+      return (
+        <Box flexDirection="column">
+          <Text bold={true} color={PALETTE[card.tone].fg}>{`${card.icon} ${card.label} · ${card.title}`}</Text>
+          {card.detail !== null && <Text color={MUTED}>{card.detail}</Text>}
+          {toggle}
+          {raw}
+        </Box>
+      )
+    }
+    return (
+      <Box flexDirection="column">
+        <Svg source={cardSvg(card)} alt={`${card.label}：${card.title}`} />
+        {toggle}
+        {raw}
+      </Box>
+    )
+  })
+
+  // A folded group hides the cards inside it; one that holds a write is drawn open.
+  on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
+    if (e.props.isExpanded) return next(e)
+    const data = sessionData(await $.session.id())
+    const workspace = await locateWorkspace(data, () => $.session.root(), p => $.fs.stat(p).then(() => true, () => false))
+    if (workspace === null) return next(e)
+    const hasCard = e.props.calls.some(call => cardForCall(call, workspace, writeMarks) !== null)
+    return hasCard ? next({ ...e, props: { ...e.props, isExpanded: true } }) : next(e)
   })
 
   on('ui.close', async ($, e, next) => {

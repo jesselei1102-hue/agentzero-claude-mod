@@ -6,7 +6,7 @@ const R = './a0 memory remember "Use pnpm, never npm" --said "Use pnpm in this p
 test('a checked remember is a green card with the words', () => {
   expect(cardForBash(R, 'remembered: use-pnpm-1 — Use pnpm, never npm\n→ tell the operator', undefined)).toEqual({
     icon: '📌', label: '已记住', tone: 'green', title: 'Use pnpm, never npm',
-    detail: '你的原话 “Use pnpm in this project, never npm.” ✓ 已核对', outline: false,
+    detail: '你的原话 “Use pnpm in this project, neve…” ✓ 已核对', outline: false,
   })
 })
 
@@ -92,4 +92,11 @@ test('cardForCall skips running, errored and interrupted calls', () => {
   expect(cardForCall({ ...call, isInterrupted: true }, '/w', marks)).toBeNull()
   expect(cardForCall({ tool: 'Read', input: { file_path: '/w/skills/builtin/analyze.md' }, isRunning: false, isErrored: false, isInterrupted: false }, '/w', marks)?.title).toBe('analyze')
   expect(cardForCall({ tool: 'Edit', input: {}, isRunning: false, isErrored: false, isInterrupted: false }, '/w', marks)).toBeNull()
+})
+
+test('a long quote is cut inside the quotes, keeping ✓ 已核对', () => {
+  const said = 'Use pnpm in this project for every install and every script, never npm.'
+  const card = cardForBash(`./a0 memory remember "Use pnpm" --said "${said}"`, 'remembered: a — Use pnpm\n', undefined)
+  expect(card?.detail?.endsWith('…” ✓ 已核对')).toBe(true)
+  expect(Array.from(card?.detail ?? '').length <= 44).toBe(true)
 })

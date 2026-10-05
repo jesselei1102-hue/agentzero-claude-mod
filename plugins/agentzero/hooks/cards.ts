@@ -53,6 +53,14 @@ const DECLARED = /^(already declared|declared): (\S+) \(([^)]*)\) — (.+?) — 
 
 const ON_FILE = '已在记录中'
 
+// The card's detail line holds 44 characters; the quote is cut so "✓ 已核对" always shows.
+const QUOTE_MAX = 31
+
+function cutQuote(said: string): string {
+  const a = Array.from(said)
+  return a.length > QUOTE_MAX ? a.slice(0, QUOTE_MAX - 1).join('') + '…' : said
+}
+
 function card(icon: string, label: string, tone: Tone, title: string, detail: string | null, outline = false): Card {
   return { icon, label, tone, title, detail, outline }
 }
@@ -80,7 +88,7 @@ export function cardForBash(command: string, stdout: string, mark: WriteMark | u
     case 'remembered': {
       const parsed = parseRemember(command)
       if (mark === 'unchecked' || parsed.kind !== 'remember') return remembered(text, '引用未核对', true)
-      return remembered(text, `你的原话 “${parsed.call.said}” ✓ 已核对`)
+      return remembered(text, `你的原话 “${cutQuote(parsed.call.said)}” ✓ 已核对`)
     }
     case 'already remembered':
       return remembered(text, ON_FILE)
