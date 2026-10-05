@@ -1,4 +1,8 @@
+import { atom, update } from 'claude-code'
 import type { On } from 'claude-code'
+import type { HudState } from '../types'
+import { EMPTY_HUD, refreshJob, type HudIo } from './snapshot'
+import { locateWorkspace, sessionData } from './session'
 import { PYTHON_PROBE, findPython } from './python'
 import { findWorkspace } from './workspace'
 
@@ -45,6 +49,8 @@ function shown(ran: { exitCode: number; stdout: string; stderr: string }): strin
   return [ran.stdout.trimEnd(), ran.stderr.trimEnd()].filter(s => s !== '').join('\n')
 }
 
+const hudAtom = atom({ plugin: 'agentzero', key: 'hud' } as const, EMPTY_HUD as HudState)
+
 export function registerCommand(on: On): void {
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -52,6 +58,18 @@ export function registerCommand(on: On): void {
       description: 'Set up, upgrade or check AgentZero in this project (init, upgrade, status)',
       argumentHint: '<init|upgrade|status>',
     })
+    const data = sessionData(await $.session.id())
+    const workspace = await locateWorkspace(data, () => $.session.root(), p => $.fs.stat(p).then(() => true, () => false))
+    if (workspace !== null) {
+      const io: HudIo = {
+        run: (argv, init) => $.process.run(argv, init),
+        read: p => $.fs.read(p) as Promise<string>,
+        write: fn => update($, hudAtom, fn),
+        status: t => $.ui.status(t),
+        pluginRoot: $.plugin.root,
+      }
+      await data.gate.run(refreshJob(io, workspace))
+    }
     return next(e)
   })
 

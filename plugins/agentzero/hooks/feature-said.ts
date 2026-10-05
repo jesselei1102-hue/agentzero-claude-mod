@@ -1,6 +1,12 @@
+import { atom, update } from 'claude-code'
 import type { On } from 'claude-code'
-import { locateWorkspace, sessionData, type SessionData } from './session'
+import type { HudState } from '../types'
+import { isMemoryWrite } from './cards'
+import { EMPTY_HUD, refreshJob, type HudIo } from './snapshot'
+import { locateWorkspace, sessionData, writeMarks, type SessionData } from './session'
 import { parseRemember, proposeCommand, saidFound } from './words'
+
+const hudAtom = atom({ plugin: 'agentzero', key: 'hud' } as const, EMPTY_HUD as HudState)
 
 const OPERATOR_ORIGINS = ['composer', 'bridge', 'sdk']
 
@@ -35,32 +41,50 @@ export function registerSaidCheck(on: On): void {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const data = sessionData(await $.session.id())
     const exists = (p: string) => $.fs.stat(p).then(() => true, () => false)
-    if ((await locateWorkspace(data, () => $.session.root(), exists)) === null) return next(e)
+    const workspace = await locateWorkspace(data, () => $.session.root(), exists)
+    if (workspace === null) return next(e)
 
-    const parsed = parseRemember(e.command)
-    if (parsed.kind === 'none') return next(e)
-    if (parsed.kind === 'unreadable') {
-      // the desktop app draws no status row, so the message also goes to a toast
-      $.ui.status(UNCHECKED)
-      $.ui.toast(UNCHECKED)
-      return next(e)
-    }
-
-    // Normally seeded at the first prompt (feature-hotset.ts); this covers a module
-    // reloaded mid-session. Always the main conversation: a subagent's remember is the
-    // main operator's words too.
-    if (!data.seeded) {
-      try {
-        seedFromRows(data, await $.session.messages({}))
-      } catch {
-        // checked against what this process saw; tried again at the next remember
+    const ran = await checkWords()
+    if (isMemoryWrite(e.command) && ran.deny === undefined) {
+      const io: HudIo = {
+        run: (argv, init) => $.process.run(argv, init),
+        read: p => $.fs.read(p) as Promise<string>,
+        write: fn => update($, hudAtom, fn),
+        status: t => $.ui.status(t),
+        pluginRoot: $.plugin.root,
       }
+      await data.gate.run(refreshJob(io, workspace))
     }
+    return ran
 
-    if (saidFound(parsed.call.said, data.prompts)) return next(e)
+    async function checkWords() {
+      const parsed = parseRemember(e.command)
+      if (parsed.kind === 'none') return next(e)
+      if (parsed.kind === 'unreadable') {
+        writeMarks.set(e.tool_use_id, 'unchecked')
+        // the desktop app draws no status row, so the message also goes to a toast
+        $.ui.status(UNCHECKED)
+        $.ui.toast(UNCHECKED)
+        return next(e)
+      }
 
-    const ran = await next({ ...e, command: proposeCommand(parsed.call) })
-    if (ran.deny !== undefined) return ran
-    return { ...ran, context: [...(ran.context ?? []), DOWNGRADE_NOTE] }
+      // Normally seeded at the first prompt (feature-hotset.ts); this covers a module
+      // reloaded mid-session. Always the main conversation: a subagent's remember is the
+      // main operator's words too.
+      if (!data.seeded) {
+        try {
+          seedFromRows(data, await $.session.messages({}))
+        } catch {
+          // checked against what this process saw; tried again at the next remember
+        }
+      }
+
+      if (saidFound(parsed.call.said, data.prompts)) return next(e)
+
+      writeMarks.set(e.tool_use_id, 'rewritten')
+      const rewritten = await next({ ...e, command: proposeCommand(parsed.call) })
+      if (rewritten.deny !== undefined) return rewritten
+      return { ...rewritten, context: [...(rewritten.context ?? []), DOWNGRADE_NOTE] }
+    }
   })
 }
