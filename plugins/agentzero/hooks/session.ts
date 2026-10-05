@@ -1,6 +1,11 @@
-import type { Engine } from 'claude-code'
 import type { InjectState } from './hotset'
+import { RefreshGate } from './snapshot'
 import { findWorkspace, type Probe } from './workspace'
+
+export type WriteMark = 'rewritten' | 'unchecked'
+
+// The word check's verdict on a Bash call, by tool_use_id, for the card drawn later.
+export const writeMarks = new Map<string, WriteMark>()
 
 export type SessionData = {
   workspace: string | null
@@ -8,6 +13,7 @@ export type SessionData = {
   inject: InjectState
   prompts: string[]
   seeded: boolean
+  gate: RefreshGate
 }
 
 const sessions = new Map<string, SessionData>()
@@ -21,6 +27,7 @@ export function sessionData(id: string): SessionData {
       inject: { lastAt: null, resetSince: false },
       prompts: [],
       seeded: false,
+      gate: new RefreshGate(),
     }
     sessions.set(id, data)
   }
