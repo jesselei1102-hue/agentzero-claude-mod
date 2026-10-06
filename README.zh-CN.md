@@ -122,6 +122,17 @@ AgentZero 自己也可能把 Fact 保存为 proposed。当 Fact 说的比你的�
 | `/agentzero init` | 在当前文件夹设置 AgentZero。它会拒绝你的主目录、根目录 `/`，以及已经是（或位于）AgentZero 项目里的文件夹。 |
 | `/agentzero upgrade` | 把项目更新到本插件自带的 AgentZero 版本。它不会覆盖你改过的框架文件。被拦下时，它会显示原因。 |
 | `/agentzero status` | 显示项目能不能运行。显示插件版本和 AgentZero 版本。 |
+| `/agentzero review` | 打开“待你确认”面板（见下文）。 |
+
+### 4. 记忆看得见
+
+输入框上方有一条提示条，一直显示记忆的状态：
+
+![记忆提示条：2 条生效，0 条待确认，hot set 刚刚加载，上下文用了 6%](docs/hud/band.png)
+
+- **提示条**显示有几条 Fact 生效、几条等你确认、hot set 上次什么时候加载、对话空间用了多少。hot set 加载失败时，那一格变红，并写明原因。
+- **面板。** 有东西等你确认时，提示条上会出现“查看待确认”按钮。点它，侧边打开一个面板。每一条都有两个按钮：“✓ 保留”和“✗ 拒绝”。插件替你运行 AgentZero 自己的 `review` 命令，提示条的数字随之变化。
+- **卡片。** 助手写入记忆时，这条命令会显示成一张卡片：用你的原话记下的 Fact 是绿色，等你确认的是黄色，助手使用技能时是蓝色。
 
 ## 限制
 
@@ -129,9 +140,11 @@ AgentZero 自己也可能把 Fact 保存为 proposed。当 Fact 说的比你的�
 - **截短的引用能通过检查。** 检查只能证明这些话是你说的，不能证明它们是你说的全部。
 - **插件只读一种命令写法。** 写法是：可选的 `cd <文件夹> &&`，然后是 `./a0 memory remember ...`（或 `python -m memory remember ...`）。值必须是带引号的普通文字。它只读这几个选项：`--said`、`--fact-key`、`--scope`、`--tag`、`--source-run`。其他写法，命令照原样运行。你会看到这条消息：`the operator's words in this remember were not checked`（这条 remember 里的话没有核对）。
 - **只有调用了 MCP 工具的任务，才能被发现是重复的。** **Skill** 是为一类任务保存下来的做法。**MCP 工具**是你接入 Claude Code 的服务器提供的工具。AgentZero 比较每次运行调用了哪些 MCP 工具，以此发现又出现了的任务。一个任务如果不调用 MCP 工具，比如只用文件和命令行写笔记，就永远不会被看成重复，所以 AgentZero 不会因为重复而提议做成 Skill。助手在两种情况下仍会提议做成 Skill（已测试）：你说一类任务以后每次都这样做；它写了一个脚本，把一批文件变成你要的结果。
-- **桌面 app 没有状态栏。** 插件的每条消息也会以短暂弹出的提示（toast）显示。
+- **桌面 app 的状态栏很小，在模型名旁边。** 所以插件的每条消息也会以短暂弹出的提示（toast）显示。
+- **在桌面 app 里，卡片不一定显示。** 桌面 app 会把每次连续运行的命令折叠成一行（“Ran a command”）。技能卡片会显示；记下 Fact 的卡片常常藏在折叠里。提示条和面板显示的是同样的状态。在终端里，卡片在测试中会显示，还没有手工确认。
+- **提示条、面板和卡片的颜色按浅色主题设计。**
 - **还没测试：** Windows；终端和 VS Code（桌面 app 已测试）；在从没用过 AgentZero 的电脑上首次安装。
-- **插件使用 Claude Code 的一个抢先体验功能（function hooks）。** 它在不同的 Claude Code 版本之间可能会变。我们在 2.1.280 版（终端）和 2.1.286 版（桌面 app）上测试过。
+- **插件使用 Claude Code 的一个抢先体验功能（function hooks）。** 它在不同的 Claude Code 版本之间可能会变。我们在 2.1.280 版、2.1.289 版（终端）和 2.1.286 版（桌面 app）上测试过。
 
 ## 给开发者
 
@@ -141,14 +154,17 @@ AgentZero 自己也可能把 Fact 保存为 proposed。当 Fact 说的比你的�
 .claude-plugin/marketplace.json   插件市场（一个插件）
 plugins/agentzero/
   hooks/                          插件代码（TypeScript）和它的测试
+  tools/snapshot.py               把记忆状态输出成 JSON，供提示条、面板和卡片使用
   kernel/                         固定版本的 AgentZero 副本（Python）
                                   SOURCE.json：它的提交号和每个文件的哈希
 scripts/sync_kernel.py            把 AgentZero 的某一个提交复制到 kernel/
 tests/                            Python 测试：复制脚本，以及 kernel/ 对照 SOURCE.json
-docs/                             设计（spec.md）、测试了什么（verify.md）、怎么写测试（test-kit.md）
+docs/                             设计（spec.md、hud-spec.md）、测试了什么（verify.md）、怎么写测试（test-kit.md）
 ```
 
-插件没有重写 AgentZero。它运行 `kernel/` 里的那份副本。有一个测试会把 `kernel/` 里每个文件和它的哈希比较。所以这份副本和 AgentZero 完全一样。插件代码约 600 行。
+插件没有重写 AgentZero。它运行 `kernel/` 里的那份副本。有一个测试会把 `kernel/` 里每个文件和它的哈希比较。所以这份副本和 AgentZero 完全一样。插件代码约 1,500 行。
+
+在桌面 app 里试改动：先提交，再把 `plugins/agentzero/.claude-plugin/plugin.json` 里的 `version` 调高，在装了插件的项目里运行 `claude plugin update agentzero@agentzero --scope local`，然后退出并重新打开 app。桌面 app 运行的是这条更新命令复制出的副本；终端直接读文件夹。
 
 运行测试：
 

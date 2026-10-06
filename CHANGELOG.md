@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased — kernel 0.4.7 (333cd6e)
+## 1.1.0-rc.3 — kernel 0.4.7 (333cd6e)
 
+- **The memory band.** A band above the prompt shows the active Facts, the ones waiting for the operator's yes, when the hot set was last loaded (red with the reason when it failed), and how much of the context is used.
+- **The review pane.** `查看待确认` on the band, or `/agentzero review`, opens a pane of what waits; keep and reject run the kernel's `memory review --confirm/--reject`. A press that fails shows the kernel's error on that item.
+- **Write cards.** Each `./a0` write (remember, propose, forget, review, link, promote, skills draft, knowledge add) and each skill use (Read tool, shell read, `skills run`) is drawn as a card. In the desktop app the cards are drawn inside the folded command group; a card for a slow write often stays hidden there (see the README's limits).
+- `tools/snapshot.py` prints the memory state as JSON through the workspace's own AgentZero modules; it names a Python without PyYAML as such, and the plugin looks for another Python when the cached one fails.
 - `kernel/` carries AgentZero 0.4.7 (commit 333cd6e). From 0.4.6: a Skill read through the shell now counts as loaded (AgentZero #92). From 0.4.7: a drafted Skill no longer lists another task's scripts as its own when the run's result sat directly in `work/` (AgentZero #93, found in the lab workspace).
 - Verified in the lab workspace: a Skill is offered and drafted when the operator says a task recurs (#91) and after a script turns a batch of inputs into the result (#72). See `docs/verify.md`.
 

@@ -46,3 +46,24 @@ Notes:
 - `memory review` now lists three items for the operator: the two Skill drafts and the earlier `dimension-unit` proposal. None was confirmed or rejected here.
 - Inputs added for these runs: `inputs/reading-01.md`, `inputs/reading-02.md` (unused), `inputs/sensors/*.csv`. A copy of the Lab from before these runs was kept outside the repo.
 - **Defect, kernel (found in the operator's run):** the confirmed `xlsx-form-to-json` Skill lists `work/summary/skill/run.py` and `work/summary/summarize_sensors.py` under "Scripts from the source run". Those came from the #72 test, not from this run. `skills draft` (`_source_run_scripts`) takes the folder of each path in `--runs` and lists every code file under it; the run's output sat directly in `work/`, so the folder was all of `work/`. The run's own Trace names exactly what it wrote (`work_files`), but the draft cited a path, not the Trace id. Fixed in AgentZero 0.4.7 (#93, commit 333cd6e) and synced into `kernel/`: replayed on the Lab, the form run now lists no script and the temperature run still lists its own two. The Skill already confirmed in the Lab keeps the wrong section until a new version replaces it.
+
+## HUD acceptance in the lab workspace (2026-10-05/06, desktop app, Claude Code 2.1.286, plugin 1.1.0-rc.1 → rc.3)
+
+| By-hand step | Seen | Result |
+|---|---|---|
+| Band shows the snapshot | `● AgentZero · 2 条生效 · 0 条待确认 · hot set · 刚刚 · 上下文 6%`, matching `./a0 memory review` and the snapshot script (screenshot `docs/hud/band.png`) | pass |
+| `/agentzero` lists `review`; `/agentzero status` names the plugin version | yes, after each `claude plugin update` and app restart | pass |
+| Card for a remember with the operator's words | not seen: the call is drawn inside the desktop's folded "Ran a command" group; with rc.3 the group is drawn by the plugin from the start, still not seen by the operator | fail, recorded as a limit |
+| Card for a proposal | not confirmed | not confirmed |
+| Card for a skill use | `🧭 使用技能 analyze` seen under the fold header (rc.2) | pass |
+| Pane: keep and reject | the operator reports no problem; a proposal ("No deployments on Fridays.") became active | pass (operator's report) |
+| `/compact`, ask again | not run in this round | not run |
+
+Findings about the desktop app (probes `az-probe`, `az-probe2`, `az-mock`, 2026-10-05/06):
+
+- It serves the plugin from the install cache (`installPath` in `installed_plugins.json`), which only `claude plugin update` rewrites; the terminal reads the folder. A change reaches the desktop after a commit, a version bump, `claude plugin update`, and an app restart.
+- It draws `AbovePrompt`, `Pane`, `ToolUse`, `AssistantMessage` and `Svg`; it does not draw plugin text for `Spinner`, `PromptHint` or `SessionMode`. Its status line is small, beside the model name. Toasts from a tool call did not show.
+- It folds every run of commands into "Ran N commands", ignores a plugin's `ToolGroup.isExpanded`, and shows a plugin-drawn `ToolGroup` tree under its own fold header.
+- Earlier finding corrected: item 3 above holds for the terminal only; the desktop runs the cached copy.
+
+The lab workspace was reset afterwards at the operator's request: the old one is kept as `~/Documents/AgentZero-Claude-Lab.bak-20261006`; the new one was made with the plugin's kernel 0.4.7.

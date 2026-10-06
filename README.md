@@ -122,6 +122,17 @@ To see the proposed Facts, run `./a0 memory review` in your project folder. You 
 | `/agentzero init` | Sets up AgentZero in the current folder. It refuses your home folder, the root folder `/`, and any folder that is already, or is inside, an AgentZero project. |
 | `/agentzero upgrade` | Updates the project to the AgentZero version in this plugin. It does not overwrite a framework file that you changed. It shows what stopped it. |
 | `/agentzero status` | Shows if the project can run. Shows the plugin version and the AgentZero version. |
+| `/agentzero review` | Opens the pane of what waits for your yes (see below). |
+
+### 4. You can see the memory
+
+A band above the prompt shows the state of the memory at all times:
+
+![The memory band: 2 Facts active, 0 waiting, hot set loaded just now, context 6% used](docs/hud/band.png)
+
+- **The band** shows how many Facts are active, how many wait for your yes, when the hot set was last loaded, and how much of the conversation space is used. When the hot set cannot be loaded, its pill turns red and says why.
+- **The pane.** When something waits, the band shows a button, `查看待确认`. It opens a pane at the side. Each item has two buttons: keep (`✓ 保留`) and reject (`✗ 拒绝`). The plugin runs AgentZero's own `review` command for you, and the band count changes.
+- **The cards.** When the assistant writes to the memory, the command shows as a card: green when a Fact is saved with your words, amber when it waits for your yes, blue when the assistant uses a skill.
 
 ## Limits
 
@@ -129,9 +140,11 @@ To see the proposed Facts, run `./a0 memory review` in your project folder. You 
 - **A shortened quote passes the check.** The check proves that the words are yours. It does not prove that they are all of your words.
 - **The plugin reads one form of the command.** The form is: an optional `cd <folder> &&`, then `./a0 memory remember ...` (or `python -m memory remember ...`). The values must be plain text in quotes. The only options it reads are `--said`, `--fact-key`, `--scope`, `--tag`, and `--source-run`. For any other form, the command runs as written. You see this message: `the operator's words in this remember were not checked`.
 - **A repeated task is found only if it calls an MCP tool.** A **Skill** is a saved procedure for one kind of task. An **MCP tool** is a tool from a server you connect to Claude Code. AgentZero finds a task that came back by comparing the MCP tools each run called. A task that calls none, such as writing notes with files and the shell, never looks repeated, so AgentZero does not offer a Skill for that reason. The assistant does offer a Skill in two cases (tested): when you say a task is to be done this way every time, and after it writes a script that turns a batch of files into what you asked for.
-- **The desktop app has no status line.** Every plugin message also shows as a short pop-up (a toast).
+- **The desktop app shows the status line small, next to the model name.** So every plugin message also shows as a short pop-up (a toast).
+- **In the desktop app, the cards do not always show.** The desktop app folds each run of commands into one line ("Ran a command"). A card for a skill shows; a card for a saved Fact often stays hidden in the fold. The band and the pane show the same state. In the terminal, the cards show in the tests; this is not yet checked by hand.
+- **The band, the pane and the cards use colours for the light theme.**
 - **Not tested yet:** Windows. Terminal and VS Code (the desktop app is tested). A first install on a computer that never had AgentZero.
-- **The plugin uses an early-access Claude Code feature (function hooks).** It can change between Claude Code versions. We tested on version 2.1.280 (terminal) and 2.1.286 (desktop app).
+- **The plugin uses an early-access Claude Code feature (function hooks).** It can change between Claude Code versions. We tested on versions 2.1.280 and 2.1.289 (terminal) and 2.1.286 (desktop app).
 
 ## For developers
 
@@ -141,14 +154,17 @@ How the repository is organised:
 .claude-plugin/marketplace.json   the marketplace (one plugin)
 plugins/agentzero/
   hooks/                          the plugin code (TypeScript) and its tests
+  tools/snapshot.py               prints the memory state as JSON for the band, the pane and the cards
   kernel/                         a pinned copy of AgentZero (Python)
                                   SOURCE.json: its commit and the hash of each file
 scripts/sync_kernel.py            copies one AgentZero commit into kernel/
 tests/                            Python tests: the copy script, and kernel/ against SOURCE.json
-docs/                             the design (spec.md), what was tested (verify.md), and how to write tests (test-kit.md)
+docs/                             the designs (spec.md, hud-spec.md), what was tested (verify.md), and how to write tests (test-kit.md)
 ```
 
-The plugin does not rewrite AgentZero. It runs the copy in `kernel/`. A test compares each file in `kernel/` with its hash. So the copy is exactly AgentZero. The plugin code is about 600 lines.
+The plugin does not rewrite AgentZero. It runs the copy in `kernel/`. A test compares each file in `kernel/` with its hash. So the copy is exactly AgentZero. The plugin code is about 1,500 lines.
+
+To try a change in the desktop app: commit it, raise `version` in `plugins/agentzero/.claude-plugin/plugin.json`, run `claude plugin update agentzero@agentzero --scope local` in the project where the plugin is installed, then quit and reopen the app. The desktop app runs the copy that the update command makes. The terminal reads the folder directly.
 
 Run the tests:
 
