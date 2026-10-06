@@ -52,7 +52,7 @@ export function registerHud(on: On): void {
       await data.gate.run(refreshJob(io, workspace))
     }
     const { Box, Text, Button, Svg } = $.ui.resolve(e) as Record<string, (props: Record<string, unknown>) => never>
-    const review = m.showReview ? <Button key="az-review" label="查看待确认" variant="primary" onPress={openReview} /> : null
+    const review = m.showReview ? <Button key="az-review" label="Review" variant="primary" onPress={openReview} /> : null
 
     if (e.surface === 'terminal') {
       return (
@@ -61,7 +61,7 @@ export function registerHud(on: On): void {
             <Text color={PALETTE[p.tone].fg} backgroundColor={PALETTE[p.tone].bg}>{` ${p.text} `}</Text>
           ))}
           {m.ring !== null && (
-            <Text color={MUTED}>{`上下文 ${m.ring.percent}%${m.ring.note !== null ? ` · ${m.ring.note}` : ''}`}</Text>
+            <Text color={MUTED}>{`context ${m.ring.percent}%${m.ring.note !== null ? ` · ${m.ring.note}` : ''}`}</Text>
           )}
           {review}
         </Box>
@@ -79,12 +79,12 @@ export function registerHud(on: On): void {
     const { Box, Text, Button, Svg } = $.ui.resolve(e) as Record<string, (props: Record<string, unknown>) => never>
     const data = sessionData(await $.session.id())
     const workspace = await locateWorkspace(data, () => $.session.root(), p => $.fs.stat(p).then(() => true, () => false))
-    if (workspace === null) return <Text color={MUTED}>这里不是 AgentZero 工作区。</Text>
+    if (workspace === null) return <Text color={MUTED}>This is not an AgentZero workspace.</Text>
 
     const hud = await read($, hudAtom)
     if (hud.snapshot === null) {
       // never "nothing waits" when the state could not be read
-      return <Text color={MUTED}>{hud.error !== null ? `记忆状态读取失败（${hud.error}）` : '记忆读取中…'}</Text>
+      return <Text color={MUTED}>{hud.error !== null ? `memory unreadable (${hud.error})` : 'reading memory…'}</Text>
     }
     const { rows, open, done } = paneRows(hud.snapshot?.pending ?? [], await read($, paneResultsAtom))
     const decide = async (item: PendingItem, verb: 'keep' | 'reject') => {
@@ -107,21 +107,21 @@ export function registerHud(on: On): void {
     }
     const buttons = (item: PendingItem) => (
       <Box flexDirection="row" gap={2}>
-        <Button key={`az-keep-${item.id}`} label="✓ 保留" plain={true} onPress={() => decide(item, 'keep')} />
-        <Button key={`az-reject-${item.id}`} label="✗ 拒绝" plain={true} dimColor={true} onPress={() => decide(item, 'reject')} />
+        <Button key={`az-keep-${item.id}`} label="✓ Keep" plain={true} onPress={() => decide(item, 'keep')} />
+        <Button key={`az-reject-${item.id}`} label="✗ Reject" plain={true} dimColor={true} onPress={() => decide(item, 'reject')} />
       </Box>
     )
-    const empty = rows.length === 0 ? <Text color={PALETTE.green.fg}>没有等你确认的东西 ✓</Text> : null
+    const empty = rows.length === 0 ? <Text color={PALETTE.green.fg}>Nothing is waiting for you ✓</Text> : null
 
     if (e.surface === 'terminal') {
       return (
         <Box flexDirection="column" gap={1}>
-          <Text bold={true}>{`待你确认 · ${open} 条待确认 · ${done} 条已处理`}</Text>
+          <Text bold={true}>{`Waiting for you · ${open} waiting · ${done} done`}</Text>
           {rows.map(row => (
             <Box flexDirection="column">
               <Text>{`[${KIND_LABEL[row.item.kind] ?? row.item.kind}] ${row.item.sentence}`}</Text>
-              {row.state === 'kept' && <Text color={PALETTE.green.fg}>✓ 已保留</Text>}
-              {row.state === 'rejected' && <Text color={MUTED}>✗ 已拒绝</Text>}
+              {row.state === 'kept' && <Text color={PALETTE.green.fg}>✓ Kept</Text>}
+              {row.state === 'rejected' && <Text color={MUTED}>✗ Rejected</Text>}
               {row.state === 'failed' && <Text color={PALETTE.red.fg}>{row.message ?? ''}</Text>}
               {row.actionable && buttons(row.item)}
             </Box>
@@ -132,7 +132,7 @@ export function registerHud(on: On): void {
     }
     return (
       <Box flexDirection="column" gap={1} paddingX={1}>
-        <Svg source={paneHeaderSvg(open, done)} alt={`${open} 条待确认，${done} 条已处理`} />
+        <Svg source={paneHeaderSvg(open, done)} alt={`${open} waiting, ${done} done`} />
         {rows.map(row => (
           <Box flexDirection="column" gap={0}>
             <Svg source={pendingItemSvg(row)} alt={row.item.sentence} />
@@ -156,7 +156,7 @@ export function registerHud(on: On): void {
     const open = (await read($, rawOpenAtom))[id] === true
     const { Box, Text, Button, Code, Svg } = $.ui.resolve(e) as Record<string, (props: Record<string, unknown>) => never>
     const toggle = (
-      <Button key={`az-raw-${id}`} label={open ? '收起' : '原始命令'} plain={true} dimColor={true}
+      <Button key={`az-raw-${id}`} label={open ? 'Hide' : 'Raw command'} plain={true} dimColor={true}
         onPress={() => update($, rawOpenAtom, m => ({ ...m, [id]: !open }))} />
     )
     const raw = open ? <Code language="bash" source={rawText(call)} /> : null
@@ -172,7 +172,7 @@ export function registerHud(on: On): void {
     }
     return (
       <Box flexDirection="column">
-        <Svg source={cardSvg(card)} alt={`${card.label}：${card.title}`} />
+        <Svg source={cardSvg(card)} alt={`${card.label}: ${card.title}`} />
         {toggle}
         {raw}
       </Box>
@@ -198,9 +198,9 @@ export function registerHud(on: On): void {
     return (
       <Box flexDirection="column" gap={1}>
         {cards.map(card => (
-          <Svg source={cardSvg(card)} alt={`${card.label}：${card.title}`} />
+          <Svg source={cardSvg(card)} alt={`${card.label}: ${card.title}`} />
         ))}
-        {others > 0 && <Text color={MUTED}>{`另有 ${others} 条命令`}</Text>}
+        {others > 0 && <Text color={MUTED}>{others === 1 ? '+1 other command' : `+${others} other commands`}</Text>}
       </Box>
     )
   })

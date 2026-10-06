@@ -1,4 +1,4 @@
-Status: approved by the operator 2026-10-05; amended the same day with four findings from planning (card rows, folded groups, terminal fallback, raw-command button).
+Status: approved by the operator 2026-10-05; amended with findings from planning and acceptance; all UI copy switched to English at the operator's request (2026-10-06).
 
 # Spec: the memory HUD (plugin 1.1, sub-project A)
 
@@ -106,54 +106,54 @@ Engine rules that shape the wiring, learned in 1.0: one hook per event and match
 One SVG strip, left to right, then one real button:
 
 ```
-[● AgentZero]  [12 条生效]  [2 条待确认]  [hot set · 3 分钟前]  ◔ 上下文 41%    [查看待确认]
+[● AgentZero]  [12 active]  [2 waiting]  [hot set · 3 min ago]  ◔ context 41%    [Review]
 ```
 
 | Pill | Normal | Other states |
 |---|---|---|
 | AgentZero | dark pill, white text | — |
 | active | green | — |
-| pending | amber with count | grey "0 条待确认" when none; the button is then hidden |
-| hot set | grey, time since load | red "hot set 未加载（<reason>）" after a failed load (1.0's message, now visible) |
-| context ring | blue arc, percent | amber from 80%, with the text "压缩后自动重新加载" |
-| (snapshot failed) | — | one grey pill "记忆状态读取失败" replaces active and pending; the reason shows in the status line |
+| pending | amber with count | grey "0 waiting" when none; the button is then hidden |
+| hot set | grey, time since load | red "hot set not loaded (<reason>)" after a failed load (1.0's message, now visible) |
+| context ring | blue arc, percent | amber from 80%, with the text "reloads after compaction" |
+| (snapshot failed) | — | one grey pill "memory unreadable" replaces active and pending; the reason shows in the status line |
 
-The band shows only inside a workspace, and yields to a survey (`hasSurvey`). The terminal has no `Svg`: there the band, the pane and the cards draw the same words as coloured `Text`. The context percent comes from `$.session.usage().context.percent`, read at each draw. Times are relative ("3 分钟前") and recomputed at each draw.
+The band shows only inside a workspace, and yields to a survey (`hasSurvey`). The terminal has no `Svg`: there the band, the pane and the cards draw the same words as coloured `Text`. The context percent comes from `$.session.usage().context.percent`, read at each draw. Times are relative ("3 min ago") and recomputed at each draw.
 
 ### The review pane
 
-Opened by the band's button or `/agentzero review`. Title "AgentZero · 待确认".
+Opened by the band's button or `/agentzero review`. Title "AgentZero · Review".
 
-- Header SVG: "待你确认" with the line "助手推断的内容，等你点头才算数", then two chips: "N 条待确认" and "M 条已处理".
-- One rounded card per pending item: a kind chip (Fact, Episode, 实体, 关系, 技能), the creation time, the sentence in bold (wrapped to at most two lines, then cut with `…`), and the provenance.
-- Under each card, two text buttons: "✓ 保留" and "✗ 拒绝".
-- A press runs `[<workspace>/a0, 'memory', 'review', '--confirm' | '--reject', <id>]` with `cwd: workspace`, timeout 10 s. Success: the card turns green "✓ 已保留" or grey with the sentence struck through "✗ 已拒绝", and the snapshot refreshes. Failure: the card shows the kernel's first error line in red, and the buttons stay.
-- Items decided in this pane stay listed, in their decided colour, until the pane closes; this is the "M 条已处理" count. There is no undo: a mistaken keep or reject is fixed with the kernel's own commands, as today.
-- Empty: "没有等你确认的东西 ✓".
+- Header SVG: "Waiting for you", then on its own line "The assistant inferred these. Keep or reject each one.", then two chips: "N waiting" and "M done".
+- One rounded card per pending item: a kind chip (Fact, Episode, Entity, Edge, Skill), the creation time, the sentence in bold (wrapped to at most two lines, then cut with `…`), and the provenance.
+- Under each card, two text buttons: "✓ Keep" and "✗ Reject".
+- A press runs `[<workspace>/a0, 'memory', 'review', '--confirm' | '--reject', <id>]` with `cwd: workspace`, timeout 10 s. Success: the card turns green "✓ Kept" or grey with the sentence struck through "✗ Rejected", and the snapshot refreshes. Failure: the card shows the kernel's first error line in red, and the buttons stay.
+- Items decided in this pane stay listed, in their decided colour, until the pane closes; this is the "M done" count. There is no undo: a mistaken keep or reject is fixed with the kernel's own commands, as today.
+- Empty: "Nothing is waiting for you ✓".
 
 ### Write cards (style B1)
 
-A card replaces the tool row of a finished `./a0` write. The card is a full-width SVG (about 640 px) with a "原始命令" text button under it that shows the command and its output in a `Code` block.
+A card replaces the tool row of a finished `./a0` write. The card is a full-width SVG (about 640 px) with a "Raw command" text button under it that shows the command and its output in a `Code` block.
 
 | Command (and output) | Icon | Label | Colour | Title | Detail |
 |---|---|---|---|---|---|
-| `memory remember`, `remembered:` | 📌 | 已记住 | green | the sentence | `你的原话 “<said>” ✓ 已核对` |
-| `memory remember` rewritten by the word check, `proposed:` | ⏳ | 待你确认 | amber | the sentence | `引用不在你说过的话里，已改为提议` |
-| `memory remember` not rewritten, `proposed:` (the kernel's own downgrade) | ⏳ | 待你确认 | amber | the sentence | `句子比你的原话多，已改为提议` |
-| `memory propose fact`, `proposed:` | ⏳ | 待你确认 | amber | the sentence | `助手推断，等你确认` |
-| `already remembered:` / `already on record (<status>):` | 📌 or ⏳ by status | 已记住 / 待你确认 | green / amber | the sentence | `已在记录中` |
-| `memory remember` the check could not read | 📌 | 已记住 | green, grey outline | the sentence | `引用未核对` |
-| `memory forget` | 🗑 | 已撤回 | grey | the target | — |
-| `memory review --confirm` / `--reject` | ✓ / ✗ | 已确认 / 已拒绝 | green / grey | the sentence | the id |
-| `memory propose entity|edge|episode`, `memory link`, `memory promote` | ⏳ / 🔗 | 待你确认 / 已关联 | amber / blue | the label or relation | — |
-| `skills draft` | 🧩 | 技能草稿 | amber | the skill id | its description |
-| `knowledge add` | 📚 | 资料已加入 | blue | the name | the type |
-| Read of `skills/builtin/<name>.md` or `skills/<id>/…`, by the Read tool or by a shell read (`cat`, `head`, `tail`, `less`, `more`, `sed`, `bat`), or `./a0 skills run <id>` | 🧭 | 使用技能 | blue | the skill name (several joined with `、`) | — |
+| `memory remember`, `remembered:` | 📌 | Remembered | green | the sentence | `Your words: “<said>” ✓ checked` |
+| `memory remember` rewritten by the word check, `proposed:` | ⏳ | Waiting for you | amber | the sentence | `Not in your words, so saved as a proposal` |
+| `memory remember` not rewritten, `proposed:` (the kernel's own downgrade) | ⏳ | Waiting for you | amber | the sentence | `Says more than your words, so saved as a proposal` |
+| `memory propose fact`, `proposed:` | ⏳ | Waiting for you | amber | the sentence | `Inferred by the assistant` |
+| `already remembered:` / `already on record (<status>):` | 📌 or ⏳ by status | Remembered / Waiting for you | green / amber | the sentence | `Already on record` |
+| `memory remember` the check could not read | 📌 | Remembered | green, grey outline | the sentence | `Quote not checked` |
+| `memory forget` | 🗑 | Forgotten | grey | the target | — |
+| `memory review --confirm` / `--reject` | ✓ / ✗ | Confirmed / Rejected | green / grey | the sentence | the id |
+| `memory propose entity|edge|episode`, `memory link`, `memory promote` | ⏳ / 🔗 | Waiting for you / Linked | amber / blue | the label or relation | — |
+| `skills draft` | 🧩 | Skill draft | amber | the skill id | its description |
+| `knowledge add` | 📚 | Knowledge added | blue | the name | the type |
+| Read of `skills/builtin/<name>.md` or `skills/<id>/…`, by the Read tool or by a shell read (`cat`, `head`, `tail`, `less`, `more`, `sed`, `bat`), or `./a0 skills run <id>` | 🧭 | Skill used | blue | the skill name (several joined with `, `) | — |
 
 - The card is drawn from the command and the stored output. If the call is running, errored, or its output does not start with the line the table names, the engine's own row is kept.
 - The word check (1.0) marks the calls it rewrote or could not read, so the card can tell "rewritten" from "proposed by the agent". This mark lives in module state keyed by `tool_use_id`.
-- A folded group of tool calls (`ToolGroup`) that holds a finished AgentZero write or skill use must show its cards without a click. The desktop app folds every run of commands ("Ran 2 commands") and ignores the engine's `isExpanded` prop, but it draws a plugin's tree for the group under its own fold header (probe, 2026-10-06). So on the desktop the group draws its cards itself, then `另有 <n> 条命令` for the other calls in it; on the terminal it is drawn expanded. The desktop also keeps a group the engine drew while a call ran, so a call recognisable as an AgentZero write or skill use from its input alone is drawn by the plugin from the start: grey `⏳ 正在记录` while it runs, its card when it ends, grey `✗ 没有记下` if it fails, grey `✓ 已运行` if its output is not one the card table names. A group without a card is left as the engine draws it.
-- **Verify by hand on the desktop:** that the expanded group shows the cards, and that "原始命令" redraws the row when pressed. If the row does not redraw, the button is removed and the engine's own result block under the row is the raw output.
+- A folded group of tool calls (`ToolGroup`) that holds a finished AgentZero write or skill use must show its cards without a click. The desktop app folds every run of commands ("Ran 2 commands") and ignores the engine's `isExpanded` prop, but it draws a plugin's tree for the group under its own fold header (probe, 2026-10-06). So on the desktop the group draws its cards itself, then `+<n> other command(s)` for the other calls in it; on the terminal it is drawn expanded. The desktop also keeps a group the engine drew while a call ran, so a call recognisable as an AgentZero write or skill use from its input alone is drawn by the plugin from the start: grey `⏳ Recording` while it runs, its card when it ends, grey `✗ Not recorded` if it fails, grey `✓ Done` if its output is not one the card table names. A group without a card is left as the engine draws it.
+- **Verify by hand on the desktop:** that the expanded group shows the cards, and that "Raw command" redraws the row when pressed. If the row does not redraw, the button is removed and the engine's own result block under the row is the raw output.
 
 ### Refresh
 
@@ -166,7 +166,7 @@ The rule: a failure in the HUD never blocks work and never hides the engine's ow
 | Case | Result |
 |---|---|
 | Not in a workspace | No band, no pane, no cards |
-| Snapshot script fails or takes over 2 s | Grey "记忆状态读取失败" pill; reason in the status line; the last good snapshot is kept if there is one |
+| Snapshot script fails or takes over 2 s | Grey "memory unreadable" pill; reason in the status line; the last good snapshot is kept if there is one |
 | Workspace AgentZero too old for the script | Same, with the reason `run /agentzero upgrade` |
 | Keep or reject fails | The pane card shows the kernel's error line; nothing else changes |
 | A card's command or output is not understood | The engine's own row is drawn |

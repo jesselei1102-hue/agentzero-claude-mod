@@ -2,13 +2,13 @@ import type { PaneResult, PaneResults, PendingItem } from '../types'
 import type { RunResult } from './snapshot'
 
 export const REVIEW_PANE = 'agentzero-review'
-export const REVIEW_TITLE = 'AgentZero · 待确认'
+export const REVIEW_TITLE = 'AgentZero · Review'
 
 export type PaneItemState = 'open' | 'kept' | 'rejected' | 'failed'
 // actionable: the item still waits, so keep and reject can still be pressed.
 export type PaneRow = { item: PendingItem; state: PaneItemState; message: string | null; actionable: boolean }
 
-export const KIND_LABEL: Record<string, string> = { fact: 'Fact', episode: 'Episode', entity: '实体', edge: '关系', skill: '技能' }
+export const KIND_LABEL: Record<string, string> = { fact: 'Fact', episode: 'Episode', entity: 'Entity', edge: 'Edge', skill: 'Skill' }
 
 export function paneRows(pending: readonly PendingItem[], results: PaneResults): { rows: PaneRow[]; open: number; done: number } {
   const rows: PaneRow[] = pending.map(item => {

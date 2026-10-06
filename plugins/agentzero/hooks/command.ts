@@ -101,7 +101,7 @@ export function registerCommand(on: On): void {
         pluginRoot: $.plugin.root,
       }
       await data.gate.run(refreshJob(io, workspace))
-      return { text: '已打开 AgentZero 待确认面板。' }
+      return { text: 'Opened the AgentZero review pane.' }
     }
 
     const python = await findPython(argv => $.process.run(argv, { timeoutMs: PROBE_TIMEOUT_MS }))

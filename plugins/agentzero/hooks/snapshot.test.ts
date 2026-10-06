@@ -33,7 +33,7 @@ test('nextHud keeps the last good snapshot and marks it stale on failure', () =>
 })
 
 test('statusAfter sets, clears and leaves the status line', () => {
-  expect(statusAfter(EMPTY_HUD, { ok: false, error: 'timed out' })).toBe('AgentZero: 记忆状态读取失败（timed out）')
+  expect(statusAfter(EMPTY_HUD, { ok: false, error: 'timed out' })).toBe('AgentZero: memory unreadable (timed out)')
   expect(statusAfter({ ...EMPTY_HUD, error: 'x' }, OK)).toBeUndefined()
   expect(statusAfter(EMPTY_HUD, OK)).toBeNull()
 })

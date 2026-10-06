@@ -14,6 +14,8 @@ export const INK = '#1F2937'
 export const MUTED = '#6B7280'
 export const FONT = '-apple-system,BlinkMacSystemFont,"PingFang SC",system-ui,sans-serif'
 const TRACK = '#E5E7EB'
+// Width of a card's detail line, in px at 12.5 px: the card is 640 wide, the line starts at 60.
+export const CARD_DETAIL_PX = 564
 
 export function escapeXml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
@@ -25,27 +27,36 @@ export function textWidth(s: string, size: number): number {
   return Math.ceil(w)
 }
 
-function cut(s: string, n: number): string {
+export function cutToWidth(s: string, maxPx: number, size: number): string {
+  if (textWidth(s, size) <= maxPx) return s
   const a = Array.from(s)
-  return a.length > n ? a.slice(0, n - 1).join('') + '…' : s
+  let n = a.length
+  while (n > 0 && textWidth(a.slice(0, n).join('') + '…', size) > maxPx) n--
+  return a.slice(0, n).join('') + '…'
 }
 
 const BREAK_AFTER = new Set(['，', '。', '、', '；', '：', ',', '.', ';', ':', '）', ')', ' '])
+const BREAK_WINDOW = 8
 
-export function wrap(s: string, perLine: number, maxLines: number): string[] {
+// Lines of at most maxPx at this font size: a break after punctuation or a space near the
+// end of a line when there is one; the last allowed line is cut with "…".
+export function wrap(s: string, maxPx: number, size: number, maxLines: number): string[] {
   let rest = Array.from(s.trim())
   const lines: string[] = []
   while (rest.length > 0 && lines.length < maxLines) {
-    if (rest.length <= perLine) {
-      lines.push(rest.join(''))
+    const text = rest.join('')
+    if (textWidth(text, size) <= maxPx) {
+      lines.push(text)
       break
     }
     if (lines.length === maxLines - 1) {
-      lines.push(rest.slice(0, perLine - 1).join('') + '…')
+      lines.push(cutToWidth(text, maxPx, size))
       break
     }
-    let at = perLine
-    for (let i = perLine - 1; i >= perLine - 6 && i >= 0; i--) {
+    let fit = 0
+    while (fit < rest.length && textWidth(rest.slice(0, fit + 1).join(''), size) <= maxPx) fit++
+    let at = Math.max(fit, 1)
+    for (let i = fit - 1; i >= fit - BREAK_WINDOW && i >= 0; i--) {
       if (BREAK_AFTER.has(rest[i])) {
         at = i + 1
         break
@@ -90,7 +101,7 @@ export function bandSvg(m: BandModel): string {
     const arc = m.ring.tone === 'amber' ? PALETTE.amber.fg : PALETTE.blue.fg
     body += `<circle cx="${cx}" cy="14" r="${r}" fill="none" stroke="${TRACK}" stroke-width="4"/>`
     body += `<circle cx="${cx}" cy="14" r="${r}" fill="none" stroke="${arc}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${((len * m.ring.percent) / 100).toFixed(1)} ${len.toFixed(1)}" transform="rotate(-90 ${cx} 14)"/>`
-    const label = `上下文 ${m.ring.percent}%`
+    const label = `context ${m.ring.percent}%`
     body += text(cx + 16, 18, label, 12, MUTED)
     x = cx + 16 + textWidth(label, 12)
     if (m.ring.note !== null) {
@@ -103,12 +114,15 @@ export function bandSvg(m: BandModel): string {
 }
 
 export function paneHeaderSvg(open: number, done: number): string {
-  const a = chip(0, 30, `${open} 条待确认`, open > 0 ? PALETTE.amber.fg : PALETTE.grey.fg, open > 0 ? PALETTE.amber.bg : PALETTE.grey.bg)
-  const b = chip(a.w + 8, 30, `${done} 条已处理`, PALETTE.grey.fg, PALETTE.grey.bg)
+  const a = chip(0, 48, `${open} waiting`, open > 0 ? PALETTE.amber.fg : PALETTE.grey.fg, open > 0 ? PALETTE.amber.bg : PALETTE.grey.bg)
+  const b = chip(a.w + 8, 48, `${done} done`, PALETTE.grey.fg, PALETTE.grey.bg)
   return svg(
     360,
-    58,
-    text(0, 18, '待你确认', 17, INK, ' font-weight="700"') + text(86, 18, '助手推断的内容，等你点头才算数', 12, MUTED) + a.svg + b.svg,
+    76,
+    text(0, 18, 'Waiting for you', 17, INK, ' font-weight="700"') +
+      text(0, 38, 'The assistant inferred these. Keep or reject each one.', 12, MUTED) +
+      a.svg +
+      b.svg,
   )
 }
 
@@ -121,21 +135,21 @@ const ITEM_STYLE: Record<PaneRow['state'], { fg: string; fill: string }> = {
 
 export function pendingItemSvg(row: PaneRow): string {
   const { fg, fill } = ITEM_STYLE[row.state]
-  const lines = wrap(row.item.sentence, 18, 2)
+  const lines = wrap(row.item.sentence, 332, 14.5, 2)
   const h = 74 + 20 * (lines.length - 1)
   const k = chip(14, 14, KIND_LABEL[row.item.kind] ?? row.item.kind, fg, '#FFFFFF')
   let body = `<rect x="0.5" y="0.5" width="359" height="${h + 21}" rx="14" fill="${fill}" stroke="${fg}" stroke-opacity="0.22"/>` + k.svg
   if (row.item.createdAt !== null) body += text(14 + k.w + 10, 29.5, row.item.createdAt.slice(5, 16).replace('T', ' '), 11.5, MUTED)
   if (row.state === 'kept' || row.state === 'rejected') {
-    body += text(346, 29.5, row.state === 'kept' ? '✓ 已保留' : '✗ 已拒绝', 12, fg, ' text-anchor="end" font-weight="700"')
+    body += text(346, 29.5, row.state === 'kept' ? '✓ Kept' : '✗ Rejected', 12, fg, ' text-anchor="end" font-weight="700"')
   }
   const strike = row.state === 'rejected' ? ' text-decoration="line-through"' : ''
   lines.forEach((line, i) => {
     body += text(14, 58 + 20 * i, line, 14.5, row.state === 'open' ? INK : MUTED, ` font-weight="700"${strike}`)
   })
   body += row.state === 'failed' && row.message !== null
-    ? text(14, h + 8, cut(row.message, 44), 12, PALETTE.red.fg)
-    : text(14, h + 8, cut(row.item.provenance, 44), 12, MUTED)
+    ? text(14, h + 8, cutToWidth(row.message, 332, 12), 12, PALETTE.red.fg)
+    : text(14, h + 8, cutToWidth(row.item.provenance, 332, 12), 12, MUTED)
   return svg(360, h + 22, body)
 }
 
@@ -147,7 +161,8 @@ export function cardSvg(card: Card): string {
   const label = chip(60, 12, card.label, tone.fg, '#FFFFFF')
   let body = `<rect x="0.5" y="0.5" width="639" height="67" rx="14" fill="${tone.bg}" ${stroke}/>`
   body += `<circle cx="32" cy="34" r="18" fill="#FFFFFF"/>` + text(32, 40, card.icon, 17, INK, ' text-anchor="middle"')
-  body += label.svg + text(60 + label.w + 10, 28, cut(card.title, 30), 15, INK, ' font-weight="700"')
-  if (card.detail !== null) body += text(60, 54, cut(card.detail, 44), 12.5, MUTED)
+  const titleX = 60 + label.w + 10
+  body += label.svg + text(titleX, 28, cutToWidth(card.title, 640 - titleX - 16, 15), 15, INK, ' font-weight="700"')
+  if (card.detail !== null) body += text(60, 54, cutToWidth(card.detail, CARD_DETAIL_PX, 12.5), 12.5, MUTED)
   return svg(640, 68, body)
 }

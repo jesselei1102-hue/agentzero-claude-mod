@@ -117,7 +117,7 @@ export function nextHud(prev: HudState, result: SnapshotResult): HudState {
 }
 
 export function statusAfter(prev: HudState, result: SnapshotResult): string | undefined | null {
-  if (!result.ok) return `AgentZero: 记忆状态读取失败（${result.error}）`
+  if (!result.ok) return `AgentZero: memory unreadable (${result.error})`
   return prev.error !== null ? undefined : null
 }
 

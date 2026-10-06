@@ -1,4 +1,5 @@
 import type { WriteMark } from './session'
+import { CARD_DETAIL_PX, cutToWidth, textWidth } from './svg'
 import { parseRemember, splitWords } from './words'
 
 export type { WriteMark }
@@ -51,23 +52,22 @@ const LINE = /^(remembered|already remembered|proposed|forgot|confirmed|rejected
 const ON_RECORD = /^already on record \((\w+)\): (\S+) — (.+)$/
 const DECLARED = /^(already declared|declared): (\S+) \(([^)]*)\) — (.+?) — .*$/
 
-const ON_FILE = '已在记录中'
+const ON_FILE = 'Already on record'
 
-// The card's detail line holds 44 characters; the quote is cut so "✓ 已核对" always shows.
-const QUOTE_MAX = 31
+// The quote is cut so "✓ checked" always fits on the card's detail line.
+const QUOTE_FRAME = 'Your words: “” ✓ checked'
 
 function cutQuote(said: string): string {
-  const a = Array.from(said)
-  return a.length > QUOTE_MAX ? a.slice(0, QUOTE_MAX - 1).join('') + '…' : said
+  return cutToWidth(said, CARD_DETAIL_PX - textWidth(QUOTE_FRAME, 12.5), 12.5)
 }
 
 function card(icon: string, label: string, tone: Tone, title: string, detail: string | null, outline = false): Card {
   return { icon, label, tone, title, detail, outline }
 }
 
-const remembered = (title: string, detail: string, outline = false) => card('📌', '已记住', 'green', title, detail, outline)
-const waiting = (title: string, detail: string) => card('⏳', '待你确认', 'amber', title, detail)
-const skill = (name: string) => card('🧭', '使用技能', 'blue', name, null)
+const remembered = (title: string, detail: string, outline = false) => card('📌', 'Remembered', 'green', title, detail, outline)
+const waiting = (title: string, detail: string) => card('⏳', 'Waiting for you', 'amber', title, detail)
+const skill = (name: string) => card('🧭', 'Skill used', 'blue', name, null)
 
 export function cardForBash(command: string, stdout: string, mark: WriteMark | undefined): Card | null {
   // A command the word check marked is a remember even when it could not be read.
@@ -78,7 +78,7 @@ export function cardForBash(command: string, stdout: string, mark: WriteMark | u
 
   const first = stdout.split('\n')[0].trimEnd()
   const declared = DECLARED.exec(first)
-  if (declared) return card('📚', '资料已加入', 'blue', declared[4], declared[1] === 'declared' ? declared[3] : ON_FILE)
+  if (declared) return card('📚', 'Knowledge added', 'blue', declared[4], declared[1] === 'declared' ? declared[3] : ON_FILE)
   const onRecord = ON_RECORD.exec(first)
   if (onRecord) return onRecord[1] === 'active' ? remembered(onRecord[3], ON_FILE) : waiting(onRecord[3], ON_FILE)
   const m = LINE.exec(first)
@@ -87,24 +87,24 @@ export function cardForBash(command: string, stdout: string, mark: WriteMark | u
   switch (verb) {
     case 'remembered': {
       const parsed = parseRemember(command)
-      if (mark === 'unchecked' || parsed.kind !== 'remember') return remembered(text, '引用未核对', true)
-      return remembered(text, `你的原话 “${cutQuote(parsed.call.said)}” ✓ 已核对`)
+      if (mark === 'unchecked' || parsed.kind !== 'remember') return remembered(text, 'Quote not checked', true)
+      return remembered(text, `Your words: “${cutQuote(parsed.call.said)}” ✓ checked`)
     }
     case 'already remembered':
       return remembered(text, ON_FILE)
     case 'proposed':
-      if (mark === 'rewritten') return waiting(text, '引用不在你说过的话里，已改为提议')
-      return waiting(text, c.sub === 'remember' ? '句子比你的原话多，已改为提议' : '助手推断，等你确认')
+      if (mark === 'rewritten') return waiting(text, 'Not in your words, so saved as a proposal')
+      return waiting(text, c.sub === 'remember' ? 'Says more than your words, so saved as a proposal' : 'Inferred by the assistant')
     case 'forgot':
-      return card('🗑', '已撤回', 'grey', text, null)
+      return card('🗑', 'Forgotten', 'grey', text, null)
     case 'confirmed':
-      return card('✓', '已确认', 'green', text, id)
+      return card('✓', 'Confirmed', 'green', text, id)
     case 'rejected':
-      return card('✗', '已拒绝', 'grey', text, id)
+      return card('✗', 'Rejected', 'grey', text, id)
     case 'linked':
-      return card('🔗', '已关联', 'blue', text, null)
+      return card('🔗', 'Linked', 'blue', text, null)
     default: // drafted
-      return card('🧩', '技能草稿', 'amber', id.replace(/^skill:/, ''), text)
+      return card('🧩', 'Skill draft', 'amber', id.replace(/^skill:/, ''), text)
   }
 }
 
@@ -152,13 +152,13 @@ export function groupCard(call: CallLike, workspace: string, marks: ReadonlyMap<
   const read = skillsReadByShell(command, workspace)
   const c = a0Command(command)
   const isSkillRun = c !== null && c.module === 'skills' && c.sub === 'run'
-  if (!isMemoryWrite(command) && !isSkillRun) return read.length > 0 && !call.isErrored ? skill(read.join('、')) : null
+  if (!isMemoryWrite(command) && !isSkillRun) return read.length > 0 && !call.isErrored ? skill(read.join(', ')) : null
   if (isSkillRun) return call.isErrored ? null : skill(c.args[0] ?? '')
   const parsed = parseRemember(command)
   const title = parsed.kind === 'remember' ? parsed.call.sentence : `${(c as A0Command).module} ${(c as A0Command).sub}`
-  if (call.isRunning) return card('⏳', '正在记录', 'grey', title, null)
-  if (call.isErrored || call.isInterrupted) return card('✗', '没有记下', 'grey', title, null)
-  return cardForCall(call, workspace, marks) ?? card('✓', '已运行', 'grey', title, null)
+  if (call.isRunning) return card('⏳', 'Recording', 'grey', title, null)
+  if (call.isErrored || call.isInterrupted) return card('✗', 'Not recorded', 'grey', title, null)
+  return cardForCall(call, workspace, marks) ?? card('✓', 'Done', 'grey', title, null)
 }
 
 export function cardForCall(call: CallLike, workspace: string, marks: ReadonlyMap<string, WriteMark>): Card | null {
@@ -169,7 +169,7 @@ export function cardForCall(call: CallLike, workspace: string, marks: ReadonlyMa
     const written = cardForBash(command, field(call.output, 'stdout'), mark)
     if (written !== null) return written
     const read = skillsReadByShell(command, workspace)
-    return read.length > 0 ? skill(read.join('、')) : null
+    return read.length > 0 ? skill(read.join(', ')) : null
   }
   if (call.tool === 'Read') return cardForRead(field(call.input, 'file_path'), workspace)
   return null
