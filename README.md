@@ -128,7 +128,7 @@ To see the proposed Facts, run `./a0 memory review` in your project folder. You 
 
 A band above the prompt shows the state of the memory at all times:
 
-![The memory band: 2 Facts active, 0 waiting, hot set loaded just now, context 6% used](docs/hud/band.png)
+![The memory band: 1 Fact active, 0 waiting, hot set loaded 3 hours ago, context 7% used](docs/hud/band.png)
 
 - **The band** shows how many Facts are active, how many wait for your yes, when the hot set was last loaded, and how much of the conversation space is used. When the hot set cannot be loaded, its pill turns red and says why.
 - **The pane.** When something waits, the band shows a button, `Review`. It opens a pane at the side. Each item has two buttons: `✓ Keep` and `✗ Reject`. The plugin runs AgentZero's own `review` command for you, and the band count changes.
